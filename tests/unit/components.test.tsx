@@ -12,7 +12,7 @@ describe("Pixel Components tests", () => {
 
   it("PixelStatusBadge renders Vietnamese label for Requested", () => {
     render(<PixelStatusBadge status="Requested" />);
-    expect(screen.getByText(/Đang tìm tài xế/i)).toBeDefined();
+    expect(screen.getByText(/Chờ xác nhận giá/i)).toBeDefined();
   });
 
   it("PixelStatusBadge renders Vietnamese label for Paid", () => {
@@ -20,9 +20,10 @@ describe("Pixel Components tests", () => {
     expect(screen.getByText(/ĐÃ HOÀN TẤT & THANH TOÁN/i)).toBeDefined();
   });
 
-  it("PixelStepper displays all 5 steps", () => {
+  it("PixelStepper displays workflow steps", () => {
     render(<PixelStepper currentStatus="PickedUp" />);
-    expect(screen.getByText("Tìm xe")).toBeDefined();
+    expect(screen.getByText("Báo giá")).toBeDefined();
+    expect(screen.getByText("Đề xuất")).toBeDefined();
     expect(screen.getByText("Tài xế nhận")).toBeDefined();
     expect(screen.getByText("Đang đi")).toBeDefined();
     expect(screen.getByText("Đã đến")).toBeDefined();

@@ -1,6 +1,6 @@
 import { PixelBadge } from "./PixelBadge";
 import type { TripStatus } from "@/types";
-import { Clock, Car, Navigation, CreditCard, CheckCircle2, XCircle, AlertCircle } from "lucide-react";
+import { Clock, Car, Navigation, CreditCard, CheckCircle2, XCircle, AlertCircle, Search, UserCheck } from "lucide-react";
 
 interface Props {
   status: TripStatus | string;
@@ -13,7 +13,21 @@ export function PixelStatusBadge({ status, className }: Props) {
       return (
         <PixelBadge variant="yellow" className={className}>
           <Clock className="h-3 w-3 mr-1" />
-          <span>Đang tìm tài xế</span>
+          <span>Chờ xác nhận giá</span>
+        </PixelBadge>
+      );
+    case "Searching":
+      return (
+        <PixelBadge variant="blue" className={className}>
+          <Search className="h-3 w-3 mr-1 animate-spin" />
+          <span>Đang tìm tài xế gần</span>
+        </PixelBadge>
+      );
+    case "DriverOffered":
+      return (
+        <PixelBadge variant="yellow" className={className}>
+          <UserCheck className="h-3 w-3 mr-1" />
+          <span>Đã đề xuất cho tài xế</span>
         </PixelBadge>
       );
     case "DriverAccepted":
@@ -34,7 +48,14 @@ export function PixelStatusBadge({ status, className }: Props) {
       return (
         <PixelBadge variant="yellow" className={className}>
           <CreditCard className="h-3 w-3 mr-1" />
-          <span>Chờ thanh toán</span>
+          <span>Đã đến nơi / Chờ thanh toán</span>
+        </PixelBadge>
+      );
+    case "PaymentPending":
+      return (
+        <PixelBadge variant="yellow" className={className}>
+          <Clock className="h-3 w-3 mr-1" />
+          <span>Đang trừ tiền...</span>
         </PixelBadge>
       );
     case "Paid":
@@ -48,14 +69,14 @@ export function PixelStatusBadge({ status, className }: Props) {
       return (
         <PixelBadge variant="outline" className={className}>
           <XCircle className="h-3 w-3 mr-1" />
-          <span>Đã hủy</span>
+          <span>Đã hủy chuyến</span>
         </PixelBadge>
       );
     case "Failed":
       return (
         <PixelBadge variant="red" className={className}>
           <AlertCircle className="h-3 w-3 mr-1" />
-          <span>Thất bại</span>
+          <span>Không thành công</span>
         </PixelBadge>
       );
     default:

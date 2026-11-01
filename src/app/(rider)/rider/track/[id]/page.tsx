@@ -3,7 +3,7 @@
 import { use, useState } from "react";
 import Link from "next/link";
 import { useClipboard } from "react-haiku";
-import { useTrip, usePayment } from "@/hooks";
+import { useTrip, usePayment, useTripActions } from "@/hooks";
 import { getErrorMessage } from "@/lib/errors";
 import { formatVND, formatDate } from "@/lib/utils";
 import { PixelStepper } from "@/components/shared/pixel/PixelStepper";
@@ -20,6 +20,7 @@ import {
   Zap,
   Copy,
   Check,
+  XCircle,
 } from "lucide-react";
 
 export default function TripTrackPage({ params }: { params: Promise<{ id: string }> }) {
@@ -32,7 +33,10 @@ export default function TripTrackPage({ params }: { params: Promise<{ id: string
   // Hook 1: Tự động Polling thông tin chuyến đi mỗi 3 giây qua Gateway
   const { data: trip, isLoading, error } = useTrip(tripId);
 
-  // Hook 2: Mutation xử lý thanh toán và đồng bộ sổ cái
+  // Hook 2: Các action của chuyến đi (Confirm, Cancel)
+  const { confirm, cancel } = useTripActions(tripId);
+
+  // Hook 3: Mutation xử lý thanh toán và đồng bộ sổ cái
   const payMutation = usePayment(tripId);
 
   const handlePay = () => {
@@ -140,6 +144,71 @@ export default function TripTrackPage({ params }: { params: Promise<{ id: string
           <PixelStepper currentStatus={trip.status} />
         </div>
 
+        {/* Action khi chuyến đi đang chờ xác nhận giá (Requested) */}
+        {trip.status === "Requested" && (
+          <div className="rounded-lg border-2 border-dashed border-taxi bg-amber-50 p-5 space-y-3">
+            <div className="flex items-center gap-2 text-amber-900 font-bold">
+              <Zap className="h-5 w-5 text-taxi fill-taxi" />
+              <span>Báo giá ước tính: {formatVND(trip.quotedFare)}</span>
+            </div>
+            <p className="text-xs text-amber-800 leading-relaxed">
+              Bạn có đồng ý với mức giá cước này để hệ thống tiến hành điều phối tài xế gần nhất không?
+            </p>
+            <div className="flex items-center gap-3 pt-2">
+              <button
+                type="button"
+                disabled={confirm.isPending || cancel.isPending}
+                onClick={() =>
+                  confirm.mutate(undefined, {
+                    onSuccess: () => toast.success("Đã xác nhận giá! Đang điều phối tài xế."),
+                    onError: (err) => toast.error("Lỗi xác nhận", { description: getErrorMessage(err) }),
+                  })
+                }
+                className="pixel-btn-primary rounded-md px-5 py-2.5 text-xs font-bold flex items-center gap-2 disabled:opacity-50"
+              >
+                <span>Đồng ý giá & Tìm tài xế</span>
+              </button>
+              <button
+                type="button"
+                disabled={confirm.isPending || cancel.isPending}
+                onClick={() =>
+                  cancel.mutate(undefined, {
+                    onSuccess: () => toast.info("Đã hủy chuyến đi."),
+                    onError: (err) => toast.error("Lỗi hủy chuyến", { description: getErrorMessage(err) }),
+                  })
+                }
+                className="pixel-btn-secondary rounded-md px-4 py-2.5 text-xs font-bold text-red-600 hover:bg-red-50 disabled:opacity-50"
+              >
+                <span>Hủy chuyến</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Đang đề xuất cho tài xế (DriverOffered) */}
+        {trip.status === "DriverOffered" && (
+          <div className="rounded-lg border-2 border-dashed border-blue-400 bg-blue-50 p-4 text-center text-xs text-blue-900 font-bold flex items-center justify-center gap-2 animate-pulse">
+            <Car className="h-4 w-4 text-blue-600" />
+            <span>Đã gửi lời mời chuyến đi tới tài xế gần nhất. Đang chờ tài xế xác nhận...</span>
+          </div>
+        )}
+
+        {/* Chuyến đi đã bị hủy (Cancelled) */}
+        {trip.status === "Cancelled" && (
+          <div className="rounded-lg border-2 border-slate-300 bg-slate-100 p-4 text-center text-xs text-slate-600 font-bold flex items-center justify-center gap-2">
+            <XCircle className="h-4 w-4 text-slate-500" />
+            <span>Chuyến đi này đã bị hủy.</span>
+          </div>
+        )}
+
+        {/* Chuyến đi thất bại (Failed) */}
+        {trip.status === "Failed" && (
+          <div className="rounded-lg border-2 border-rose-300 bg-rose-50 p-4 text-center text-xs text-rose-800 font-bold flex items-center justify-center gap-2">
+            <AlertCircle className="h-4 w-4 text-rose-600" />
+            <span>Hiện không tìm được tài xế phù hợp quanh khu vực của bạn hoặc các tài xế đều bận.</span>
+          </div>
+        )}
+
         {/* Trip Info Details */}
         <div className="rounded border-2 border-pixel-border bg-slate-50 p-4 space-y-3 text-xs">
           <div className="flex items-start gap-2.5">
@@ -169,7 +238,7 @@ export default function TripTrackPage({ params }: { params: Promise<{ id: string
               {trip.driverId ? (
                 <strong className="text-emerald-700">TX #{trip.driverId.substring(0, 6)}</strong>
               ) : (
-                <em className="text-amber-600">Đang tìm tài xế gần nhất...</em>
+                <em className="text-amber-600">Đang điều phối...</em>
               )}
             </span>
           </div>

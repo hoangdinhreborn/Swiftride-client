@@ -10,10 +10,26 @@ export function useTripActions(tripId: string) {
   const invalidate = (updated: TripDto) => {
     queryClient.setQueryData(["trip", tripId], updated);
     queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
+    queryClient.invalidateQueries({ queryKey: ["myOffers"] });
   };
+
+  const confirm = useMutation({
+    mutationFn: () => tripService.confirmTrip(tripId),
+    onSuccess: invalidate,
+  });
+
+  const cancel = useMutation({
+    mutationFn: () => tripService.cancelTrip(tripId),
+    onSuccess: invalidate,
+  });
 
   const accept = useMutation({
     mutationFn: () => tripService.acceptTrip(tripId),
+    onSuccess: invalidate,
+  });
+
+  const decline = useMutation({
+    mutationFn: () => tripService.declineTrip(tripId),
     onSuccess: invalidate,
   });
 
@@ -28,9 +44,18 @@ export function useTripActions(tripId: string) {
   });
 
   return {
+    confirm,
+    cancel,
     accept,
+    decline,
     pickup,
     dropoff,
-    isProcessing: accept.isPending || pickup.isPending || dropoff.isPending,
+    isProcessing:
+      confirm.isPending ||
+      cancel.isPending ||
+      accept.isPending ||
+      decline.isPending ||
+      pickup.isPending ||
+      dropoff.isPending,
   };
 }

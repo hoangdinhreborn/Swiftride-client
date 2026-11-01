@@ -10,8 +10,20 @@ export const tripService = {
     return apiClient.get<TripDto>(`/trips/${id}`);
   },
 
+  confirmTrip: (id: string): Promise<TripDto> => {
+    return apiClient.post<TripDto>(`/trips/${id}/confirm`);
+  },
+
+  cancelTrip: (id: string): Promise<TripDto> => {
+    return apiClient.post<TripDto>(`/trips/${id}/cancel`);
+  },
+
   acceptTrip: (id: string): Promise<TripDto> => {
     return apiClient.post<TripDto>(`/trips/${id}/driver-accept`);
+  },
+
+  declineTrip: (id: string): Promise<TripDto> => {
+    return apiClient.post<TripDto>(`/trips/${id}/driver-decline`);
   },
 
   pickupTrip: (id: string): Promise<TripDto> => {
@@ -20,5 +32,9 @@ export const tripService = {
 
   dropoffTrip: (id: string): Promise<TripDto> => {
     return apiClient.post<TripDto>(`/trips/${id}/dropoff`);
+  },
+
+  getMyOffers: (): Promise<TripDto[]> => {
+    return apiClient.get<TripDto[]>("/trips/offers");
   },
 };

@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { Check, Clock, Car, Navigation, CreditCard, Sparkles } from "lucide-react";
+import { Check, Clock, Car, Navigation, CreditCard, Sparkles, UserCheck } from "lucide-react";
 import type { TripStatus } from "@/types";
 
 interface Props {
@@ -7,7 +7,8 @@ interface Props {
 }
 
 const STEPS = [
-  { key: "Requested", label: "Tìm xe", icon: Clock },
+  { key: "Requested", label: "Báo giá", icon: Clock },
+  { key: "DriverOffered", label: "Đề xuất", icon: UserCheck },
   { key: "DriverAccepted", label: "Tài xế nhận", icon: Car },
   { key: "PickedUp", label: "Đang đi", icon: Navigation },
   { key: "DroppedOff", label: "Đã đến", icon: CreditCard },
@@ -18,14 +19,18 @@ function getStepIndex(status: string): number {
   switch (status) {
     case "Requested":
       return 0;
-    case "DriverAccepted":
+    case "Searching":
+    case "DriverOffered":
       return 1;
-    case "PickedUp":
+    case "DriverAccepted":
       return 2;
-    case "DroppedOff":
+    case "PickedUp":
       return 3;
-    case "Paid":
+    case "DroppedOff":
+    case "PaymentPending":
       return 4;
+    case "Paid":
+      return 5;
     default:
       return 0;
   }
@@ -78,7 +83,7 @@ export function PixelStepper({ currentStatus }: Props) {
               {/* Label */}
               <span
                 className={cn(
-                  "mt-2 text-[11px] font-bold text-center",
+                  "mt-2 text-[10px] font-bold text-center",
                   isCurrent
                     ? "text-pixel-border font-mono underline decoration-taxi decoration-2"
                     : isDone

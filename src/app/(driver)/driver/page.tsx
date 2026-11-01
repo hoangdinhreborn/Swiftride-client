@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import { useClipboard } from "react-haiku";
+import { useQuery } from "@tanstack/react-query";
 import { useDriverLocation, useTrip, useTripActions } from "@/hooks";
+import { tripService } from "@/services/trip.service";
 import { getErrorMessage } from "@/lib/errors";
 import { formatVND } from "@/lib/utils";
 import { DynamicMap } from "@/components/shared/map/DynamicMap";
@@ -18,6 +20,8 @@ import {
   Copy,
   Check,
   Sparkles,
+  BellRing,
+  X,
 } from "lucide-react";
 
 export default function DriverPage() {
@@ -30,11 +34,19 @@ export default function DriverPage() {
   // Hook 1: Định vị GPS & đồng bộ MongoDB qua Gateway
   const { isOnline, toggleOnline, driverPos, gpsError } = useDriverLocation(true);
 
-  // Hook 2: Polling thông tin chuyến đi đang làm việc
+  // Hook 2: Tự động quét các chuyến đi đang được đề xuất cho tài xế này (GET /trips/offers)
+  const { data: myOffers } = useQuery({
+    queryKey: ["myOffers"],
+    queryFn: () => tripService.getMyOffers(),
+    refetchInterval: 3000,
+    enabled: isOnline,
+  });
+
+  // Hook 3: Polling thông tin chuyến đi đang làm việc
   const { data: trip } = useTrip(activeTripId);
 
-  // Hook 3: Các hành động của tài xế (Accept, Pickup, Dropoff)
-  const { accept, pickup, dropoff, isProcessing } = useTripActions(activeTripId);
+  // Hook 4: Các hành động của tài xế (Accept, Decline, Pickup, Dropoff)
+  const { accept, decline, pickup, dropoff, isProcessing } = useTripActions(activeTripId);
 
   const handleToggleOnline = async () => {
     try {
@@ -56,6 +68,20 @@ export default function DriverPage() {
       },
       onError: (err) => {
         toast.error("Không thể nhận chuyến", {
+          description: getErrorMessage(err),
+        });
+      },
+    });
+  };
+
+  const handleDecline = () => {
+    decline.mutate(undefined, {
+      onSuccess: () => {
+        toast.info("Đã từ chối chuyến đi. Hệ thống đang điều phối cho tài xế kế tiếp.");
+        setActiveTripId("");
+      },
+      onError: (err) => {
+        toast.error("Lỗi khi từ chối chuyến", {
           description: getErrorMessage(err),
         });
       },
@@ -151,7 +177,39 @@ export default function DriverPage() {
           </div>
         </div>
 
-        {/* Card Tra cứu hoặc Tiếp nhận chuyến đi */}
+        {/* Thông báo cuốc xe đang được đề xuất cho bạn (Incoming Offer) */}
+        {myOffers && myOffers.length > 0 && (
+          <div className="rounded-lg border-2 border-dashed border-taxi bg-amber-50 p-4 space-y-3 animate-pulse">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-amber-900">
+                <BellRing className="h-4 w-4 text-taxi" />
+                <span>CÓ CUỐC XE MỚI ĐƯỢC ĐỀ XUẤT CHO BẠN!</span>
+              </div>
+              <span className="font-mono text-sm font-black text-pixel-border">
+                {formatVND(myOffers[0].quotedFare)}
+              </span>
+            </div>
+
+            <div className="text-xs space-y-1 text-slate-700">
+              <div>
+                <strong>Điểm đón:</strong> {myOffers[0].pickup}
+              </div>
+              <div>
+                <strong>Điểm đến:</strong> {myOffers[0].destination}
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setActiveTripId(myOffers[0].id)}
+              className="w-full pixel-btn-primary rounded py-2 text-xs font-bold text-center"
+            >
+              Xem chi tiết & Nhận cuốc
+            </button>
+          </div>
+        )}
+
+        {/* Card Tra cứu chuyến theo mã */}
         <div className="pixel-card rounded-lg p-5 bg-white space-y-4">
           <div className="border-b-2 border-pixel-border pb-2">
             <h2 className="text-sm font-bold text-pixel-border flex items-center gap-2">
@@ -234,7 +292,7 @@ export default function DriverPage() {
                     copy(trip.id);
                     toast.success("Đã sao chép mã chuyến!");
                   }}
-                  className="inline-flex items-center gap-1 text-[11px] text-blue-600 hover:underline font-bold"
+                  className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:underline"
                 >
                   {copied ? <Check className="h-3 w-3 text-emerald-600" /> : <Copy className="h-3 w-3" />}
                   <span>{copied ? "Đã copy" : "Copy ID"}</span>
@@ -244,16 +302,28 @@ export default function DriverPage() {
 
             {/* Nút thao tác theo State Machine */}
             <div className="pt-2">
-              {trip.status === "Requested" && (
-                <button
-                  type="button"
-                  disabled={isProcessing}
-                  onClick={handleAccept}
-                  className="w-full pixel-btn-primary rounded-md py-3 text-xs font-bold flex items-center justify-center gap-2 disabled:opacity-50"
-                >
-                  <Car className="h-4 w-4" />
-                  <span>{accept.isPending ? "Đang nhận..." : "CHẤP NHẬN CHUYẾN ĐI (Accept)"}</span>
-                </button>
+              {(trip.status === "DriverOffered" || trip.status === "Requested") && (
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    disabled={isProcessing}
+                    onClick={handleAccept}
+                    className="pixel-btn-primary rounded-md py-3 text-xs font-bold flex items-center justify-center gap-1.5 disabled:opacity-50"
+                  >
+                    <Car className="h-4 w-4" />
+                    <span>{accept.isPending ? "Đang nhận..." : "CHẤP NHẬN"}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={isProcessing}
+                    onClick={handleDecline}
+                    className="pixel-btn-secondary rounded-md py-3 text-xs font-bold flex items-center justify-center gap-1.5 text-red-600 hover:bg-red-50 disabled:opacity-50"
+                  >
+                    <X className="h-4 w-4" />
+                    <span>{decline.isPending ? "Từ chối..." : "TỪ CHỐI"}</span>
+                  </button>
+                </div>
               )}
 
               {trip.status === "DriverAccepted" && (
@@ -308,10 +378,7 @@ export default function DriverPage() {
 
       {/* Cột phải: Bản đồ giám sát vị trí tài xế */}
       <div className="flex-1 h-full min-h-[360px] relative">
-        <DynamicMap
-          driverLocation={driverPos}
-          center={driverPos}
-        />
+        <DynamicMap driverLocation={driverPos} center={driverPos} />
       </div>
     </div>
   );
