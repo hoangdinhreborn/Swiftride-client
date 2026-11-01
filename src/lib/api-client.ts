@@ -59,10 +59,10 @@ class ApiClient {
 
       if (!res.ok) {
         let problem: ProblemDetails;
+        const text = await res.text().catch(() => "");
         try {
-          problem = await res.json();
+          problem = JSON.parse(text);
         } catch {
-          const text = await res.text();
           problem = {
             status: res.status,
             title: res.statusText || "Lỗi yêu cầu",

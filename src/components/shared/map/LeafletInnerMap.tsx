@@ -12,15 +12,20 @@ const GOONG_MAP_KEY = process.env.NEXT_PUBLIC_GOONG_MAP_KEY;
 
 // Các theme bản đồ chất lượng cao không yêu cầu API key (Zero-Config)
 const MAP_THEMES = {
+  osm: {
+    name: "OpenStreetMap",
+    url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  },
+  hot: {
+    name: "Giao thông (OSM HOT)",
+    url: "https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png",
+    attribution: "&copy; OpenStreetMap contributors, Tiles style by Humanitarian OSM Team",
+  },
   esri: {
     name: "Đường phố (ESRI)",
     url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
     attribution: "&copy; Esri &copy; OpenStreetMap contributors",
-  },
-  hot: {
-    name: "Giao thông (HOT)",
-    url: "https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png",
-    attribution: "&copy; OpenStreetMap contributors, Tiles style by Humanitarian OSM Team",
   },
   goong: {
     name: "Goong.io",
@@ -170,9 +175,9 @@ export default function LeafletInnerMap({
   const [roadCoordinates, setRoadCoordinates] = useState<[number, number][]>([]);
   const [routeStats, setRouteStats] = useState<{ distanceKm: number; durationMin: number } | null>(null);
 
-  // Mặc định: Nếu có key Goong thì dùng Goong, nếu không thì dùng ESRI Street Map (hoàn toàn miễn phí, siêu nét)
-  const [selectedTheme, setSelectedTheme] = useState<"esri" | "hot" | "goong">(
-    GOONG_MAP_KEY ? "goong" : "esri"
+  // Mặc định: OpenStreetMap (chuẩn bài tập lớn), có thể chuyển sang ESRI hoặc OSM HOT
+  const [selectedTheme, setSelectedTheme] = useState<"osm" | "esri" | "hot" | "goong">(
+    GOONG_MAP_KEY ? "goong" : "osm"
   );
   const [showThemeMenu, setShowThemeMenu] = useState(false);
 
@@ -228,6 +233,20 @@ export default function LeafletInnerMap({
               <button
                 type="button"
                 onClick={() => {
+                  setSelectedTheme("osm");
+                  setShowThemeMenu(false);
+                }}
+                className={`w-full text-left px-2.5 py-1.5 rounded flex items-center justify-between ${
+                  selectedTheme === "osm" ? "bg-taxi font-bold" : "hover:bg-slate-100"
+                }`}
+              >
+                <span>OpenStreetMap</span>
+                <span className="text-[9px] opacity-70">Gốc</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
                   setSelectedTheme("esri");
                   setShowThemeMenu(false);
                 }}
@@ -236,7 +255,7 @@ export default function LeafletInnerMap({
                 }`}
               >
                 <span>Đường phố (ESRI)</span>
-                <span className="text-[9px] opacity-70">Miễn phí</span>
+                <span className="text-[9px] opacity-70">Sắc nét</span>
               </button>
 
               <button
