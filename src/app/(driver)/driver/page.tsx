@@ -22,7 +22,10 @@ import {
   Sparkles,
   BellRing,
   X,
+  MapPin,
+  Flag,
 } from "lucide-react";
+import type { LatLng } from "@/lib/map/haversine";
 
 export default function DriverPage() {
   const [activeTripId, setActiveTripId] = useState<string>("");
@@ -63,7 +66,7 @@ export default function DriverPage() {
     accept.mutate(undefined, {
       onSuccess: (updated) => {
         toast.success("Đã nhận chuyến đi thành công!", {
-          description: `Hãy di chuyển đến đón khách tại: ${updated.pickup}`,
+          description: `Bản đồ đang dẫn đường tới điểm đón khách: ${updated.pickup}`,
         });
       },
       onError: (err) => {
@@ -92,7 +95,7 @@ export default function DriverPage() {
     pickup.mutate(undefined, {
       onSuccess: (updated) => {
         toast.success("Đã xác nhận đón khách!", {
-          description: `Bắt đầu di chuyển đến: ${updated.destination}`,
+          description: `Bản đồ đang chuyển hướng đến điểm đến: ${updated.destination}`,
         });
       },
       onError: (err) => {
@@ -126,6 +129,37 @@ export default function DriverPage() {
     setActiveTripId(inputTripId.trim());
     toast.info(`Đang tra cứu chuyến: ${inputTripId.trim().substring(0, 8)}...`);
   };
+
+  // Xác định điểm đầu và điểm cuối của tuyến đường trên bản đồ tài xế theo từng giai đoạn hành trình
+  let mapPickup: LatLng | null = null;
+  let mapDestination: LatLng | null = null;
+  let navigationBanner = "";
+
+  if (trip && trip.pickupLat && trip.pickupLng) {
+    const customerPickup: LatLng = { lat: trip.pickupLat, lng: trip.pickupLng };
+    const customerDest: LatLng = { lat: trip.destinationLat, lng: trip.destinationLng };
+
+    if (trip.status === "DriverAccepted") {
+      // Giai đoạn 1: Tài xế đã nhận cuốc -> Dẫn đường từ vị trí tài xế đến điểm đón của khách hàng
+      mapPickup = driverPos;
+      mapDestination = customerPickup;
+      navigationBanner = `DẪN ĐƯỜNG TỚI ĐIỂM ĐÓN KHÁCH (A): ${trip.pickup}`;
+    } else if (trip.status === "PickedUp") {
+      // Giai đoạn 2: Đã đón khách -> Dẫn đường từ vị trí hiện tại/điểm đón đến điểm đến khách đã đặt
+      mapPickup = driverPos;
+      mapDestination = customerDest;
+      navigationBanner = `DẪN ĐƯỜNG TỚI ĐIỂM TRẢ KHÁCH (B): ${trip.destination}`;
+    } else {
+      // Giai đoạn xem trước (Requested, DriverOffered, DroppedOff, Paid): Hiển thị lộ trình khách đặt
+      mapPickup = customerPickup;
+      mapDestination = customerDest;
+    }
+  } else if (myOffers && myOffers.length > 0 && myOffers[0].pickupLat && myOffers[0].pickupLng) {
+    // Đề xuất mới: Dẫn đường xem trước tới điểm đón khách
+    mapPickup = driverPos;
+    mapDestination = { lat: myOffers[0].pickupLat, lng: myOffers[0].pickupLng };
+    navigationBanner = `ĐỀ XUẤT CUỐC MỚI: Đón khách tại ${myOffers[0].pickup}`;
+  }
 
   return (
     <div className="flex h-[calc(100vh-61px)] flex-col md:flex-row">
@@ -190,12 +224,20 @@ export default function DriverPage() {
               </span>
             </div>
 
-            <div className="text-xs space-y-1 text-slate-700">
-              <div>
-                <strong>Điểm đón:</strong> {myOffers[0].pickup}
+            <div className="text-xs space-y-1.5 text-slate-700 bg-white p-3 rounded border border-amber-200">
+              <div className="flex items-start gap-2">
+                <MapPin className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+                <div>
+                  <strong className="block text-slate-900">Điểm đón khách:</strong>
+                  <span>{myOffers[0].pickup}</span>
+                </div>
               </div>
-              <div>
-                <strong>Điểm đến:</strong> {myOffers[0].destination}
+              <div className="flex items-start gap-2">
+                <Flag className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
+                <div>
+                  <strong className="block text-slate-900">Điểm đến:</strong>
+                  <span>{myOffers[0].destination}</span>
+                </div>
               </div>
             </div>
 
@@ -204,7 +246,7 @@ export default function DriverPage() {
               onClick={() => setActiveTripId(myOffers[0].id)}
               className="w-full pixel-btn-primary rounded py-2 text-xs font-bold text-center"
             >
-              Xem chi tiết & Nhận cuốc
+              Xem lộ trình & Nhận cuốc
             </button>
           </div>
         )}
@@ -259,32 +301,42 @@ export default function DriverPage() {
               </div>
             </div>
 
-            {/* Chi tiết đón / trả */}
-            <div className="space-y-2 text-xs">
+            {/* Chi tiết đón / trả khách hàng */}
+            <div className="space-y-3 text-xs bg-slate-50 p-3 rounded border border-slate-200">
               <div className="flex items-start gap-2">
-                <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded bg-emerald-600 text-white font-bold text-[9px]">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-emerald-600 text-white font-bold text-[10px]">
                   A
                 </span>
                 <div>
-                  <span className="text-[10px] text-slate-400 block font-bold">Điểm đón</span>
-                  <span className="font-bold text-slate-800">{trip.pickup}</span>
+                  <span className="text-[10px] text-slate-400 block font-bold">ĐỊA CHỈ ĐÓN KHÁCH</span>
+                  <span className="font-bold text-slate-800 text-sm block">{trip.pickup}</span>
+                  {trip.pickupLat ? (
+                    <span className="text-[10px] font-mono text-emerald-700">
+                      Tọa độ đón: {trip.pickupLat.toFixed(4)}, {trip.pickupLng.toFixed(4)}
+                    </span>
+                  ) : null}
                 </div>
               </div>
 
-              <div className="flex items-start gap-2">
-                <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded bg-rose-600 text-white font-bold text-[9px]">
+              <div className="flex items-start gap-2 border-t border-slate-200 pt-2">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-rose-600 text-white font-bold text-[10px]">
                   B
                 </span>
                 <div>
-                  <span className="text-[10px] text-slate-400 block font-bold">Điểm đến</span>
-                  <span className="font-bold text-slate-800">{trip.destination}</span>
+                  <span className="text-[10px] text-slate-400 block font-bold">ĐIỂM ĐẾN</span>
+                  <span className="font-bold text-slate-800 text-sm block">{trip.destination}</span>
+                  {trip.destinationLat ? (
+                    <span className="text-[10px] font-mono text-rose-700">
+                      Tọa độ đến: {trip.destinationLat.toFixed(4)}, {trip.destinationLng.toFixed(4)}
+                    </span>
+                  ) : null}
                 </div>
               </div>
 
               {/* Copy ID button */}
-              <div className="border-t border-slate-100 pt-2 flex items-center justify-between">
-                <span className="text-[10px] text-slate-400 font-mono">
-                  ID: {trip.id.substring(0, 8)}...
+              <div className="border-t border-slate-200 pt-2 flex items-center justify-between">
+                <span className="text-[10px] text-slate-500 font-mono">
+                  Mã: {trip.id.substring(0, 8)}...
                 </span>
                 <button
                   type="button"
@@ -299,6 +351,21 @@ export default function DriverPage() {
                 </button>
               </div>
             </div>
+
+            {/* Hướng dẫn điều hướng hành trình */}
+            {trip.status === "DriverAccepted" && (
+              <div className="rounded border-2 border-dashed border-emerald-500 bg-emerald-50 p-2.5 text-xs text-emerald-800 font-bold flex items-center gap-2">
+                <Navigation className="h-4 w-4 text-emerald-600 animate-pulse" />
+                <span>Bản đồ đang vẽ tuyến đường dẫn bạn đến điểm đón: <strong>{trip.pickup}</strong></span>
+              </div>
+            )}
+
+            {trip.status === "PickedUp" && (
+              <div className="rounded border-2 border-dashed border-blue-500 bg-blue-50 p-2.5 text-xs text-blue-800 font-bold flex items-center gap-2">
+                <Flag className="h-4 w-4 text-blue-600 animate-pulse" />
+                <span>Bản đồ đang vẽ tuyến đường chở khách đến điểm đến: <strong>{trip.destination}</strong></span>
+              </div>
+            )}
 
             {/* Nút thao tác theo State Machine */}
             <div className="pt-2">
@@ -376,9 +443,26 @@ export default function DriverPage() {
         )}
       </div>
 
-      {/* Cột phải: Bản đồ giám sát vị trí tài xế */}
+      {/* Cột phải: Bản đồ giám sát vị trí tài xế & Lộ trình thực tế */}
       <div className="flex-1 h-full min-h-[360px] relative">
-        <DynamicMap driverLocation={driverPos} center={driverPos} />
+        {navigationBanner && (
+          <div className="absolute top-4 left-4 right-4 z-[1000] rounded-lg border-2 border-pixel-border bg-pixel-dark text-white p-3 shadow-pixel flex items-center justify-between font-mono text-xs">
+            <div className="flex items-center gap-2">
+              <Compass className="h-4 w-4 text-taxi animate-spin" />
+              <span className="font-bold">{navigationBanner}</span>
+            </div>
+            <span className="bg-taxi text-pixel-dark px-2 py-0.5 rounded text-[10px] font-bold">
+              GPS LIVE
+            </span>
+          </div>
+        )}
+
+        <DynamicMap
+          driverLocation={driverPos}
+          pickup={mapPickup}
+          destination={mapDestination}
+          center={driverPos}
+        />
       </div>
     </div>
   );

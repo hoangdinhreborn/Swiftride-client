@@ -16,7 +16,11 @@ export interface TripDto {
   driverId: string | null;
   offeredDriverId?: string | null;
   pickup: string;
+  pickupLat: number;
+  pickupLng: number;
   destination: string;
+  destinationLat: number;
+  destinationLng: number;
   quotedFare: number;
   status: TripStatus;
   createdAt: string;

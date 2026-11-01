@@ -6,6 +6,7 @@ import { useClipboard } from "react-haiku";
 import { useTrip, usePayment, useTripActions } from "@/hooks";
 import { getErrorMessage } from "@/lib/errors";
 import { formatVND, formatDate } from "@/lib/utils";
+import { DynamicMap } from "@/components/shared/map/DynamicMap";
 import { PixelStepper } from "@/components/shared/pixel/PixelStepper";
 import { PixelStatusBadge } from "@/components/shared/pixel/PixelStatusBadge";
 import { toast } from "sonner";
@@ -21,6 +22,8 @@ import {
   Copy,
   Check,
   XCircle,
+  MapPin,
+  Flag,
 } from "lucide-react";
 
 export default function TripTrackPage({ params }: { params: Promise<{ id: string }> }) {
@@ -89,239 +92,254 @@ export default function TripTrackPage({ params }: { params: Promise<{ id: string
   const isCompleted = trip.status === "Paid";
   const canPay = trip.status === "DroppedOff";
 
+  const pickupPos = trip.pickupLat && trip.pickupLng ? { lat: trip.pickupLat, lng: trip.pickupLng } : null;
+  const destinationPos =
+    trip.destinationLat && trip.destinationLng ? { lat: trip.destinationLat, lng: trip.destinationLng } : null;
+
   return (
-    <div className="mx-auto max-w-2xl px-4 py-8 space-y-6">
-      {/* Top back link */}
-      <div className="flex items-center justify-between">
-        <Link
-          href="/rider"
-          className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-pixel-dark"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          <span>Đặt chuyến xe mới</span>
-        </Link>
-
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-mono text-slate-500">Mã chuyến: {trip.id.substring(0, 8)}...</span>
-          <button
-            type="button"
-            onClick={() => {
-              copy(trip.id);
-              toast.success("Đã sao chép mã chuyến!");
-            }}
-            className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:underline"
+    <div className="flex h-[calc(100vh-61px)] flex-col md:flex-row">
+      {/* Cột trái: Điều khiển theo dõi & Thanh toán */}
+      <div className="w-full md:w-[460px] lg:w-[500px] flex-shrink-0 overflow-y-auto p-4 space-y-4 border-r-2 border-pixel-border bg-slate-50">
+        {/* Top back link */}
+        <div className="flex items-center justify-between">
+          <Link
+            href="/rider"
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-pixel-dark"
           >
-            {copied ? <Check className="h-3 w-3 text-emerald-600" /> : <Copy className="h-3 w-3" />}
-            <span>{copied ? "Đã copy" : "Copy"}</span>
-          </button>
-        </div>
-      </div>
+            <ArrowLeft className="h-4 w-4" />
+            <span>Đặt chuyến xe mới</span>
+          </Link>
 
-      {/* Main Status Tracker Card */}
-      <div className="pixel-card rounded-lg p-6 bg-white space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b-2 border-pixel-border pb-4">
-          <div>
-            <span className="text-[11px] font-bold uppercase tracking-wider text-pixel-muted block">
-              Trạng thái hành trình
-            </span>
-            <div className="mt-1">
-              <PixelStatusBadge status={trip.status} />
-            </div>
-          </div>
-
-          <div className="text-right">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-pixel-muted block">
-              Cước phí trọn gói
-            </span>
-            <span className="font-mono text-2xl font-black text-pixel-border">
-              {formatVND(trip.quotedFare)}
-            </span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-mono text-slate-500">Mã: {trip.id.substring(0, 8)}...</span>
+            <button
+              type="button"
+              onClick={() => {
+                copy(trip.id);
+                toast.success("Đã sao chép mã chuyến!");
+              }}
+              className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:underline"
+            >
+              {copied ? <Check className="h-3 w-3 text-emerald-600" /> : <Copy className="h-3 w-3" />}
+              <span>{copied ? "Đã copy" : "Copy"}</span>
+            </button>
           </div>
         </div>
 
-        {/* Stepper visual */}
-        <div className="py-2">
-          <PixelStepper currentStatus={trip.status} />
-        </div>
-
-        {/* Action khi chuyến đi đang chờ xác nhận giá (Requested) */}
-        {trip.status === "Requested" && (
-          <div className="rounded-lg border-2 border-dashed border-taxi bg-amber-50 p-5 space-y-3">
-            <div className="flex items-center gap-2 text-amber-900 font-bold">
-              <Zap className="h-5 w-5 text-taxi fill-taxi" />
-              <span>Báo giá ước tính: {formatVND(trip.quotedFare)}</span>
-            </div>
-            <p className="text-xs text-amber-800 leading-relaxed">
-              Bạn có đồng ý với mức giá cước này để hệ thống tiến hành điều phối tài xế gần nhất không?
-            </p>
-            <div className="flex items-center gap-3 pt-2">
-              <button
-                type="button"
-                disabled={confirm.isPending || cancel.isPending}
-                onClick={() =>
-                  confirm.mutate(undefined, {
-                    onSuccess: () => toast.success("Đã xác nhận giá! Đang điều phối tài xế."),
-                    onError: (err) => toast.error("Lỗi xác nhận", { description: getErrorMessage(err) }),
-                  })
-                }
-                className="pixel-btn-primary rounded-md px-5 py-2.5 text-xs font-bold flex items-center gap-2 disabled:opacity-50"
-              >
-                <span>Đồng ý giá & Tìm tài xế</span>
-              </button>
-              <button
-                type="button"
-                disabled={confirm.isPending || cancel.isPending}
-                onClick={() =>
-                  cancel.mutate(undefined, {
-                    onSuccess: () => toast.info("Đã hủy chuyến đi."),
-                    onError: (err) => toast.error("Lỗi hủy chuyến", { description: getErrorMessage(err) }),
-                  })
-                }
-                className="pixel-btn-secondary rounded-md px-4 py-2.5 text-xs font-bold text-red-600 hover:bg-red-50 disabled:opacity-50"
-              >
-                <span>Hủy chuyến</span>
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Đang đề xuất cho tài xế (DriverOffered) */}
-        {trip.status === "DriverOffered" && (
-          <div className="rounded-lg border-2 border-dashed border-blue-400 bg-blue-50 p-4 text-center text-xs text-blue-900 font-bold flex items-center justify-center gap-2 animate-pulse">
-            <Car className="h-4 w-4 text-blue-600" />
-            <span>Đã gửi lời mời chuyến đi tới tài xế gần nhất. Đang chờ tài xế xác nhận...</span>
-          </div>
-        )}
-
-        {/* Chuyến đi đã bị hủy (Cancelled) */}
-        {trip.status === "Cancelled" && (
-          <div className="rounded-lg border-2 border-slate-300 bg-slate-100 p-4 text-center text-xs text-slate-600 font-bold flex items-center justify-center gap-2">
-            <XCircle className="h-4 w-4 text-slate-500" />
-            <span>Chuyến đi này đã bị hủy.</span>
-          </div>
-        )}
-
-        {/* Chuyến đi thất bại (Failed) */}
-        {trip.status === "Failed" && (
-          <div className="rounded-lg border-2 border-rose-300 bg-rose-50 p-4 text-center text-xs text-rose-800 font-bold flex items-center justify-center gap-2">
-            <AlertCircle className="h-4 w-4 text-rose-600" />
-            <span>Hiện không tìm được tài xế phù hợp quanh khu vực của bạn hoặc các tài xế đều bận.</span>
-          </div>
-        )}
-
-        {/* Trip Info Details */}
-        <div className="rounded border-2 border-pixel-border bg-slate-50 p-4 space-y-3 text-xs">
-          <div className="flex items-start gap-2.5">
-            <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-emerald-600 text-white font-bold text-[10px]">
-              A
-            </div>
+        {/* Main Status Tracker Card */}
+        <div className="pixel-card rounded-lg p-5 bg-white space-y-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b-2 border-pixel-border pb-3">
             <div>
-              <span className="text-[11px] text-slate-400 block font-bold">Điểm đón khách</span>
-              <span className="font-bold text-slate-800">{trip.pickup}</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-pixel-muted block">
+                Trạng thái hành trình
+              </span>
+              <div className="mt-1">
+                <PixelStatusBadge status={trip.status} />
+              </div>
+            </div>
+
+            <div className="text-right">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-pixel-muted block">
+                Cước phí trọn gói
+              </span>
+              <span className="font-mono text-xl font-black text-pixel-border">
+                {formatVND(trip.quotedFare)}
+              </span>
             </div>
           </div>
 
-          <div className="flex items-start gap-2.5">
-            <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-rose-600 text-white font-bold text-[10px]">
-              B
-            </div>
-            <div>
-              <span className="text-[11px] text-slate-400 block font-bold">Điểm đến</span>
-              <span className="font-bold text-slate-800">{trip.destination}</span>
-            </div>
+          {/* Stepper visual */}
+          <div className="py-1">
+            <PixelStepper currentStatus={trip.status} />
           </div>
 
-          <div className="border-t border-slate-200 pt-2 flex items-center justify-between text-[11px] text-slate-500 font-mono">
-            <span>Thời gian đặt: {formatDate(trip.createdAt)}</span>
-            <span>
-              Tài xế:{" "}
-              {trip.driverId ? (
-                <strong className="text-emerald-700">TX #{trip.driverId.substring(0, 6)}</strong>
-              ) : (
-                <em className="text-amber-600">Đang điều phối...</em>
-              )}
-            </span>
-          </div>
-        </div>
-
-        {/* DroppedOff Payment Action Card */}
-        {canPay && (
-          <div className="rounded-lg border-2 border-dashed border-amber-500 bg-amber-50 p-5 space-y-3">
-            <div className="flex items-center gap-2 text-amber-900 font-bold">
-              <CreditCard className="h-5 w-5 text-amber-600" />
-              <span>Chuyến đi đã hoàn thành! Vui lòng thanh toán cước</span>
+          {/* Action khi chuyến đi đang chờ xác nhận giá (Requested) */}
+          {trip.status === "Requested" && (
+            <div className="rounded-lg border-2 border-dashed border-taxi bg-amber-50 p-4 space-y-2.5">
+              <div className="flex items-center gap-2 text-amber-900 font-bold text-xs">
+                <Zap className="h-4 w-4 text-taxi fill-taxi" />
+                <span>Báo giá ước tính: {formatVND(trip.quotedFare)}</span>
+              </div>
+              <p className="text-[11px] text-amber-800 leading-relaxed">
+                Bạn có đồng ý với mức giá cước này để hệ thống tiến hành điều phối tài xế gần nhất không?
+              </p>
+              <div className="flex items-center gap-2 pt-1">
+                <button
+                  type="button"
+                  disabled={confirm.isPending || cancel.isPending}
+                  onClick={() =>
+                    confirm.mutate(undefined, {
+                      onSuccess: () => toast.success("Đã xác nhận giá! Đang điều phối tài xế."),
+                      onError: (err) => toast.error("Lỗi xác nhận", { description: getErrorMessage(err) }),
+                    })
+                  }
+                  className="pixel-btn-primary rounded-md px-4 py-2 text-xs font-bold flex items-center gap-1.5 disabled:opacity-50"
+                >
+                  <span>Đồng ý giá & Tìm xe</span>
+                </button>
+                <button
+                  type="button"
+                  disabled={confirm.isPending || cancel.isPending}
+                  onClick={() =>
+                    cancel.mutate(undefined, {
+                      onSuccess: () => toast.info("Đã hủy chuyến đi."),
+                      onError: (err) => toast.error("Lỗi hủy chuyến", { description: getErrorMessage(err) }),
+                    })
+                  }
+                  className="pixel-btn-secondary rounded-md px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-50 disabled:opacity-50"
+                >
+                  <span>Hủy</span>
+                </button>
+              </div>
             </div>
-            <p className="text-xs text-amber-800 leading-relaxed">
-              Tài xế đã trả bạn tại điểm đến. Bạn có thể xác nhận thanh toán trực tiếp qua cổng thanh toán
-              PaymentService (Sổ cái Double-Entry & Idempotency).
-            </p>
+          )}
 
-            <div className="flex flex-col sm:flex-row gap-3 pt-2">
-              <select
-                value={paymentToken}
-                onChange={(e) => setPaymentToken(e.target.value)}
-                className="rounded border-2 border-pixel-border bg-white p-2.5 text-xs font-mono"
-              >
-                <option value="tok_fake_card">Thẻ Visa/Mastercard (tok_fake_card)</option>
-                <option value="tok_momo_wallet">Ví MoMo điện tử (tok_momo_wallet)</option>
-                <option value="tok_zalopay">ZaloPay (tok_zalopay)</option>
-              </select>
+          {/* Đang đề xuất cho tài xế (DriverOffered) */}
+          {trip.status === "DriverOffered" && (
+            <div className="rounded-lg border-2 border-dashed border-blue-400 bg-blue-50 p-3 text-center text-xs text-blue-900 font-bold flex items-center justify-center gap-2 animate-pulse">
+              <Car className="h-4 w-4 text-blue-600" />
+              <span>Đã gửi lời mời chuyến đi tới tài xế gần nhất. Đang chờ xác nhận...</span>
+            </div>
+          )}
 
-              <button
-                type="button"
-                disabled={payMutation.isPending}
-                onClick={handlePay}
-                className="pixel-btn-primary rounded-md px-6 py-2.5 text-xs font-bold flex items-center justify-center gap-2 disabled:opacity-50"
-              >
-                {payMutation.isPending ? (
-                  <>
-                    <Zap className="h-4 w-4 animate-spin" />
-                    <span>Đang xử lý trừ tiền...</span>
-                  </>
+          {/* Chuyến đi đã bị hủy (Cancelled) */}
+          {trip.status === "Cancelled" && (
+            <div className="rounded-lg border-2 border-slate-300 bg-slate-100 p-3 text-center text-xs text-slate-600 font-bold flex items-center justify-center gap-2">
+              <XCircle className="h-4 w-4 text-slate-500" />
+              <span>Chuyến đi này đã bị hủy.</span>
+            </div>
+          )}
+
+          {/* Chuyến đi thất bại (Failed) */}
+          {trip.status === "Failed" && (
+            <div className="rounded-lg border-2 border-rose-300 bg-rose-50 p-3 text-center text-xs text-rose-800 font-bold flex items-center justify-center gap-2">
+              <AlertCircle className="h-4 w-4 text-rose-600" />
+              <span>Hiện không tìm được tài xế phù hợp quanh khu vực của bạn hoặc các tài xế đều bận.</span>
+            </div>
+          )}
+
+          {/* Trip Info Details */}
+          <div className="rounded border-2 border-pixel-border bg-slate-50 p-3.5 space-y-2.5 text-xs">
+            <div className="flex items-start gap-2">
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-emerald-600 text-white font-bold text-[10px]">
+                A
+              </span>
+              <div>
+                <span className="text-[10px] text-slate-400 block font-bold">ĐỊA CHỈ ĐÓN KHÁCH</span>
+                <span className="font-bold text-slate-800 text-sm block">{trip.pickup}</span>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-2 border-t border-slate-200 pt-2">
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-rose-600 text-white font-bold text-[10px]">
+                B
+              </span>
+              <div>
+                <span className="text-[10px] text-slate-400 block font-bold">ĐIỂM ĐẾN</span>
+                <span className="font-bold text-slate-800 text-sm block">{trip.destination}</span>
+              </div>
+            </div>
+
+            <div className="border-t border-slate-200 pt-2 flex items-center justify-between text-[11px] text-slate-500 font-mono">
+              <span>Đặt lúc: {formatDate(trip.createdAt)}</span>
+              <span>
+                Tài xế:{" "}
+                {trip.driverId ? (
+                  <strong className="text-emerald-700">TX #{trip.driverId.substring(0, 6)}</strong>
                 ) : (
-                  <>
-                    <CreditCard className="h-4 w-4" />
-                    <span>Thanh toán {formatVND(trip.quotedFare)}</span>
-                  </>
+                  <em className="text-amber-600">Đang tìm tài xế...</em>
                 )}
-              </button>
+              </span>
             </div>
           </div>
-        )}
 
-        {/* Paid Receipt Stamp */}
-        {isCompleted && (
-          <div className="rounded-lg border-2 border-emerald-600 bg-emerald-50 p-6 text-center space-y-3">
-            <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-emerald-600 text-white mb-1 shadow-pixel-sm">
-              <CheckCircle2 className="h-6 w-6" />
+          {/* DroppedOff Payment Action Card */}
+          {canPay && (
+            <div className="rounded-lg border-2 border-dashed border-amber-500 bg-amber-50 p-4 space-y-3">
+              <div className="flex items-center gap-2 text-amber-900 font-bold text-xs">
+                <CreditCard className="h-4 w-4 text-amber-600" />
+                <span>Chuyến đi đã hoàn thành! Vui lòng thanh toán cước</span>
+              </div>
+              <p className="text-[11px] text-amber-800 leading-relaxed">
+                Tài xế đã trả bạn tại điểm đến. Vui lòng xác nhận thanh toán trực tiếp qua cổng thanh toán
+                PaymentService.
+              </p>
+
+              <div className="flex flex-col sm:flex-row gap-2 pt-1">
+                <select
+                  value={paymentToken}
+                  onChange={(e) => setPaymentToken(e.target.value)}
+                  className="rounded border-2 border-pixel-border bg-white p-2 text-xs font-mono"
+                >
+                  <option value="tok_fake_card">Thẻ Visa/Mastercard (tok_fake_card)</option>
+                  <option value="tok_momo_wallet">Ví MoMo điện tử (tok_momo_wallet)</option>
+                  <option value="tok_zalopay">ZaloPay (tok_zalopay)</option>
+                </select>
+
+                <button
+                  type="button"
+                  disabled={payMutation.isPending}
+                  onClick={handlePay}
+                  className="pixel-btn-primary rounded-md px-5 py-2 text-xs font-bold flex items-center justify-center gap-1.5 disabled:opacity-50"
+                >
+                  {payMutation.isPending ? (
+                    <>
+                      <Zap className="h-4 w-4 animate-spin" />
+                      <span>Đang trừ tiền...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CreditCard className="h-4 w-4" />
+                      <span>Thanh toán {formatVND(trip.quotedFare)}</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
+          )}
 
-            <h3 className="font-mono text-xl font-black text-emerald-800 tracking-wider">
-              [BIÊN LAI ĐIỆN TỬ - ĐÃ THANH TOÁN]
-            </h3>
+          {/* Paid Receipt Stamp */}
+          {isCompleted && (
+            <div className="rounded-lg border-2 border-emerald-600 bg-emerald-50 p-5 text-center space-y-2">
+              <div className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-emerald-600 text-white mb-1 shadow-pixel-sm">
+                <CheckCircle2 className="h-5 w-5" />
+              </div>
 
-            <p className="text-xs text-emerald-700 max-w-md mx-auto">
-              Thanh toán thành công. Giao dịch đã được ghi nhận vào Sổ cái kép (Double-Entry Ledger)
-              và hệ thống RabbitMQ Event Saga đã đồng bộ hoàn tất chuyến đi.
-            </p>
+              <h3 className="font-mono text-base font-black text-emerald-800 tracking-wider">
+                [BIÊN LAI ĐIỆN TỬ - ĐÃ THANH TOÁN]
+              </h3>
 
-            <div className="pt-2">
-              <Link
-                href="/rider"
-                className="pixel-btn-primary inline-flex items-center gap-2 px-6 py-2.5 rounded text-xs font-bold"
-              >
-                <Car className="h-4 w-4" />
-                <span>Đặt một chuyến xe khác</span>
-              </Link>
+              <p className="text-[11px] text-emerald-700 max-w-sm mx-auto">
+                Thanh toán thành công. Sổ cái kép đã ghi nhận và chuyến đi đã hoàn tất.
+              </p>
+
+              <div className="pt-2">
+                <Link
+                  href="/rider"
+                  className="pixel-btn-primary inline-flex items-center gap-1.5 px-4 py-2 rounded text-xs font-bold"
+                >
+                  <Car className="h-4 w-4" />
+                  <span>Đặt chuyến xe mới</span>
+                </Link>
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
+
+        {/* Safety info footer */}
+        <div className="flex items-center justify-center gap-1.5 text-[11px] text-slate-400">
+          <ShieldCheck className="h-4 w-4 text-emerald-600" />
+          <span>Giao dịch được bảo vệ với HMAC-SHA256 & Idempotency Key</span>
+        </div>
       </div>
 
-      {/* Safety info footer */}
-      <div className="flex items-center justify-center gap-2 text-xs text-slate-400">
-        <ShieldCheck className="h-4 w-4 text-emerald-600" />
-        <span>Giao dịch được bảo vệ với chữ ký số HMAC-SHA256 & Idempotency Key</span>
+      {/* Cột phải: Bản đồ lộ trình OpenStreetMap + OSRM trực quan */}
+      <div className="flex-1 h-full min-h-[360px] relative">
+        <DynamicMap
+          pickup={pickupPos}
+          destination={destinationPos}
+          center={pickupPos || undefined}
+        />
       </div>
     </div>
   );
