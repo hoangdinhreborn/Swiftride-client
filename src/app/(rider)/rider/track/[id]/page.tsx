@@ -2,6 +2,7 @@
 
 import { use, useState } from "react";
 import Link from "next/link";
+import { useClipboard } from "react-haiku";
 import { useTrip, usePayment } from "@/hooks";
 import { getErrorMessage } from "@/lib/errors";
 import { formatVND, formatDate } from "@/lib/utils";
@@ -17,11 +18,16 @@ import {
   Clock,
   ShieldCheck,
   Zap,
+  Copy,
+  Check,
 } from "lucide-react";
 
 export default function TripTrackPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: tripId } = use(params);
   const [paymentToken, setPaymentToken] = useState<string>("tok_fake_card");
+
+  // Hook sao chép mã chuyến từ react-haiku
+  const { copy, copied } = useClipboard();
 
   // Hook 1: Tự động Polling thông tin chuyến đi mỗi 3 giây qua Gateway
   const { data: trip, isLoading, error } = useTrip(tripId);
@@ -91,7 +97,20 @@ export default function TripTrackPage({ params }: { params: Promise<{ id: string
           <span>Đặt chuyến xe mới</span>
         </Link>
 
-        <span className="text-xs font-mono text-slate-500">Mã chuyến: {trip.id}</span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-mono text-slate-500">Mã chuyến: {trip.id.substring(0, 8)}...</span>
+          <button
+            type="button"
+            onClick={() => {
+              copy(trip.id);
+              toast.success("Đã sao chép mã chuyến!");
+            }}
+            className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:underline"
+          >
+            {copied ? <Check className="h-3 w-3 text-emerald-600" /> : <Copy className="h-3 w-3" />}
+            <span>{copied ? "Đã copy" : "Copy"}</span>
+          </button>
+        </div>
       </div>
 
       {/* Main Status Tracker Card */}

@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import { MapPin, Navigation2, Compass, Tag, RefreshCw } from "lucide-react";
+import { useState, useEffect } from "react";
+import { useDebounce } from "react-haiku";
+import { Navigation2, Compass, Tag, RefreshCw, Search, MapPin } from "lucide-react";
 import { PRESET_LOCATIONS, type LatLng } from "@/lib/map/haversine";
+import { goongService, type PlacePrediction } from "@/services/goong.service";
 import { toast } from "sonner";
 
 interface Props {
@@ -44,6 +46,63 @@ export function BookingForm({
 }: Props) {
   const [isGettingLocation, setIsGettingLocation] = useState(false);
 
+  // 1. Dùng useDebounce từ react-haiku để debounce input tìm kiếm địa chỉ
+  const debouncedPickupQuery = useDebounce(pickupName, 350);
+  const debouncedDestQuery = useDebounce(destinationName, 350);
+
+  const [pickupSuggestions, setPickupSuggestions] = useState<PlacePrediction[]>([]);
+  const [destSuggestions, setDestSuggestions] = useState<PlacePrediction[]>([]);
+  const [activeDropdown, setActiveDropdown] = useState<"pickup" | "dest" | null>(null);
+
+  // Gợi ý địa chỉ điểm đón
+  useEffect(() => {
+    if (!debouncedPickupQuery || debouncedPickupQuery.length < 2) {
+      setPickupSuggestions([]);
+      return;
+    }
+    // Tránh tìm kiếm nếu địa chỉ là do vừa click chọn
+    if (pickupPos && pickupName.includes(pickupPos.lat.toFixed(2))) return;
+
+    goongService.searchPlaces(debouncedPickupQuery).then((results) => {
+      setPickupSuggestions(results);
+    });
+  }, [debouncedPickupQuery, pickupPos, pickupName]);
+
+  // Gợi ý địa chỉ điểm đến
+  useEffect(() => {
+    if (!debouncedDestQuery || debouncedDestQuery.length < 2) {
+      setDestSuggestions([]);
+      return;
+    }
+    if (destinationPos && destinationName.includes(destinationPos.lat.toFixed(2))) return;
+
+    goongService.searchPlaces(debouncedDestQuery).then((results) => {
+      setDestSuggestions(results);
+    });
+  }, [debouncedDestQuery, destinationPos, destinationName]);
+
+  const handleSelectPrediction = async (type: "pickup" | "dest", pred: PlacePrediction) => {
+    const detail = await goongService.getPlaceDetail(pred.placeId);
+    if (!detail) {
+      toast.error("Không thể lấy tọa độ của địa điểm này");
+      return;
+    }
+
+    if (type === "pickup") {
+      setPickupName(pred.mainText);
+      setPickupPos({ lat: detail.lat, lng: detail.lng });
+      setPickupSuggestions([]);
+      setActiveDropdown(null);
+      toast.success(`Đã chọn điểm đón: ${pred.mainText}`);
+    } else {
+      setDestinationName(pred.mainText);
+      setDestinationPos({ lat: detail.lat, lng: detail.lng });
+      setDestSuggestions([]);
+      setActiveDropdown(null);
+      toast.success(`Đã chọn điểm đến: ${pred.mainText}`);
+    }
+  };
+
   const handleGetCurrentLocation = () => {
     if (!navigator.geolocation) {
       toast.error("Trình duyệt không hỗ trợ Geolocation API");
@@ -55,9 +114,9 @@ export function BookingForm({
       (pos) => {
         const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
         setPickupPos(coords);
-        setPickupName("Vị trí hiện tại của bạn");
+        setPickupName("Vị trí GPS của bạn");
         setIsGettingLocation(false);
-        toast.success("Đã lấy được tọa độ hiện tại!");
+        toast.success("Đã định vị thành công!");
       },
       (err) => {
         setIsGettingLocation(false);
@@ -75,6 +134,7 @@ export function BookingForm({
       setDestinationName(preset.name);
       setDestinationPos({ lat: preset.lat, lng: preset.lng });
     }
+    setActiveDropdown(null);
   };
 
   return (
@@ -85,12 +145,12 @@ export function BookingForm({
           <span>Lộ trình chuyến đi</span>
         </h2>
         <p className="text-xs text-pixel-muted">
-          Chọn tọa độ điểm đón và điểm đến để nhận báo giá từ MatchingService
+          Tìm kiếm địa chỉ Việt Nam qua Goong.io hoặc chọn trực tiếp trên bản đồ
         </p>
       </div>
 
       {/* Điểm đón (Pickup) */}
-      <div>
+      <div className="relative">
         <div className="flex items-center justify-between mb-1">
           <label className="text-xs font-bold text-emerald-800 flex items-center gap-1.5">
             <span className="flex h-4 w-4 items-center justify-center rounded-full bg-emerald-600 text-white text-[10px]">
@@ -126,11 +186,35 @@ export function BookingForm({
 
         <input
           type="text"
-          placeholder="Nhập địa chỉ đón khách..."
+          placeholder="Gõ tìm kiếm địa chỉ đón..."
           value={pickupName}
-          onChange={(e) => setPickupName(e.target.value)}
+          onChange={(e) => {
+            setPickupName(e.target.value);
+            setActiveDropdown("pickup");
+          }}
+          onFocus={() => setActiveDropdown("pickup")}
           className="w-full rounded border-2 border-pixel-border p-2.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500"
         />
+
+        {/* Dropdown gợi ý địa chỉ điểm đón */}
+        {activeDropdown === "pickup" && pickupSuggestions.length > 0 && (
+          <div className="absolute top-full left-0 right-0 z-50 mt-1 max-h-56 overflow-y-auto rounded border-2 border-pixel-border bg-white shadow-pixel-lg">
+            {pickupSuggestions.map((s) => (
+              <button
+                key={s.placeId}
+                type="button"
+                onClick={() => handleSelectPrediction("pickup", s)}
+                className="w-full text-left p-2.5 hover:bg-emerald-50 border-b border-slate-100 last:border-0 flex items-start gap-2"
+              >
+                <MapPin className="h-3.5 w-3.5 text-emerald-600 shrink-0 mt-0.5" />
+                <div className="text-xs">
+                  <span className="font-bold text-slate-800 block">{s.mainText}</span>
+                  <span className="text-[10px] text-slate-500">{s.secondaryText || s.description}</span>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
 
         {pickupPos && (
           <span className="text-[10px] font-mono text-emerald-700 block mt-1">
@@ -140,7 +224,7 @@ export function BookingForm({
       </div>
 
       {/* Điểm đến (Destination) */}
-      <div>
+      <div className="relative">
         <div className="flex items-center justify-between mb-1">
           <label className="text-xs font-bold text-rose-800 flex items-center gap-1.5">
             <span className="flex h-4 w-4 items-center justify-center rounded-full bg-rose-600 text-white text-[10px]">
@@ -164,11 +248,35 @@ export function BookingForm({
 
         <input
           type="text"
-          placeholder="Nhập địa chỉ điểm đến..."
+          placeholder="Gõ tìm kiếm địa chỉ đến..."
           value={destinationName}
-          onChange={(e) => setDestinationName(e.target.value)}
+          onChange={(e) => {
+            setDestinationName(e.target.value);
+            setActiveDropdown("dest");
+          }}
+          onFocus={() => setActiveDropdown("dest")}
           className="w-full rounded border-2 border-pixel-border p-2.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-rose-500"
         />
+
+        {/* Dropdown gợi ý địa chỉ điểm đến */}
+        {activeDropdown === "dest" && destSuggestions.length > 0 && (
+          <div className="absolute top-full left-0 right-0 z-50 mt-1 max-h-56 overflow-y-auto rounded border-2 border-pixel-border bg-white shadow-pixel-lg">
+            {destSuggestions.map((s) => (
+              <button
+                key={s.placeId}
+                type="button"
+                onClick={() => handleSelectPrediction("dest", s)}
+                className="w-full text-left p-2.5 hover:bg-rose-50 border-b border-slate-100 last:border-0 flex items-start gap-2"
+              >
+                <MapPin className="h-3.5 w-3.5 text-rose-600 shrink-0 mt-0.5" />
+                <div className="text-xs">
+                  <span className="font-bold text-slate-800 block">{s.mainText}</span>
+                  <span className="text-[10px] text-slate-500">{s.secondaryText || s.description}</span>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
 
         {destinationPos && (
           <span className="text-[10px] font-mono text-rose-700 block mt-1">

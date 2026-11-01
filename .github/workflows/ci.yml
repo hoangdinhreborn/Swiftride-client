@@ -1,0 +1,48 @@
+name: SwiftRide Client CI
+
+on:
+  push:
+    branches:
+      - main
+      - 'feature/**'
+  pull_request:
+    branches:
+      - main
+
+env:
+  NODE_VERSION: '22'
+  PNPM_VERSION: '10'
+  NEXT_PUBLIC_APP_URL: 'http://localhost:3000'
+  API_GATEWAY_URL: 'http://localhost:5000'
+
+jobs:
+  validate-and-build:
+    name: Typecheck, Test & Build (Next.js 16.4.3)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: TypeScript Strict Typecheck
+        run: pnpm typecheck
+
+      - name: Run Unit & Component Tests (Vitest)
+        run: pnpm test
+
+      - name: Build Next.js Production Bundle
+        run: pnpm build

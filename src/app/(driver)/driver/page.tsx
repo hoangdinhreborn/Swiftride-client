@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useClipboard } from "react-haiku";
 import { useDriverLocation, useTrip, useTripActions } from "@/hooks";
 import { getErrorMessage } from "@/lib/errors";
 import { formatVND } from "@/lib/utils";
@@ -14,11 +15,16 @@ import {
   Navigation,
   CheckCircle,
   Search,
+  Copy,
+  Check,
 } from "lucide-react";
 
 export default function DriverPage() {
   const [activeTripId, setActiveTripId] = useState<string>("");
   const [inputTripId, setInputTripId] = useState<string>("");
+
+  // Hook tiện ích sao chép mã chuyến từ react-haiku
+  const { copy, copied } = useClipboard();
 
   // Hook 1: Định vị GPS & đồng bộ MongoDB qua Gateway
   const { isOnline, toggleOnline, driverPos, gpsError } = useDriverLocation(true);
@@ -214,6 +220,24 @@ export default function DriverPage() {
                   <span className="text-[10px] text-slate-400 block font-bold">Điểm đến</span>
                   <span className="font-bold text-slate-800">{trip.destination}</span>
                 </div>
+              </div>
+
+              {/* Copy ID button */}
+              <div className="border-t border-slate-100 pt-2 flex items-center justify-between">
+                <span className="text-[10px] text-slate-400 font-mono">
+                  ID: {trip.id.substring(0, 8)}...
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    copy(trip.id);
+                    toast.success("Đã sao chép mã chuyến!");
+                  }}
+                  className="inline-flex items-center gap-1 text-[11px] text-blue-600 hover:underline font-bold"
+                >
+                  {copied ? <Check className="h-3 w-3 text-emerald-600" /> : <Copy className="h-3 w-3" />}
+                  <span>{copied ? "Đã copy" : "Copy ID"}</span>
+                </button>
               </div>
             </div>
 

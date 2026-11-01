@@ -10,7 +10,7 @@ export function middleware(req: NextRequest) {
   // 1. Bảo vệ trang Rider
   if (pathname.startsWith("/rider")) {
     if (!isTokenValid || decoded?.role !== "Rider") {
-      const loginUrl = new URL("/login", req.url);
+      const loginUrl = new URL("/", req.url);
       loginUrl.searchParams.set("role", "Rider");
       loginUrl.searchParams.set("redirect", pathname);
       return NextResponse.redirect(loginUrl);
@@ -21,7 +21,7 @@ export function middleware(req: NextRequest) {
   // 2. Bảo vệ trang Driver
   if (pathname.startsWith("/driver")) {
     if (!isTokenValid || decoded?.role !== "Driver") {
-      const loginUrl = new URL("/login", req.url);
+      const loginUrl = new URL("/", req.url);
       loginUrl.searchParams.set("role", "Driver");
       loginUrl.searchParams.set("redirect", pathname);
       return NextResponse.redirect(loginUrl);
@@ -29,11 +29,14 @@ export function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // 3. Nếu đã đăng nhập mà vào lại trang /login
-  if (pathname === "/login") {
+  // 3. Nếu đã đăng nhập mà vào lại trang chủ / hoặc /login
+  if (pathname === "/" || pathname === "/login") {
     if (isTokenValid) {
       const target = decoded?.role === "Driver" ? "/driver" : "/rider";
       return NextResponse.redirect(new URL(target, req.url));
+    }
+    if (pathname === "/login") {
+      return NextResponse.redirect(new URL("/", req.url));
     }
     return NextResponse.next();
   }
@@ -42,5 +45,5 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/rider/:path*", "/driver/:path*", "/login"],
+  matcher: ["/", "/rider/:path*", "/driver/:path*", "/login"],
 };

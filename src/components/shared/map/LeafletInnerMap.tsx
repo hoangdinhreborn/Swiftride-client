@@ -6,6 +6,8 @@ import L from "leaflet";
 import type { LatLng } from "@/lib/map/haversine";
 import type { NearbyDriverDto } from "@/types";
 
+const GOONG_MAP_KEY = process.env.NEXT_PUBLIC_GOONG_MAP_KEY;
+
 // Custom SVG Icons
 function createDivIcon(svgHtml: string, className = "", size: [number, number] = [32, 32]) {
   return L.divIcon({
@@ -113,8 +115,21 @@ export default function LeafletInnerMap({
   if (pickup) routePoints.push([pickup.lat, pickup.lng]);
   if (destination) routePoints.push([destination.lat, destination.lng]);
 
+  const tileUrl = GOONG_MAP_KEY
+    ? `https://tiles.goong.io/{z}/{x}/{y}.png?api_key=${GOONG_MAP_KEY}`
+    : "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
+
+  const attribution = GOONG_MAP_KEY
+    ? '&copy; <a href="https://goong.io/">Goong.io</a> Maps'
+    : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+
   return (
     <div className="relative h-full w-full overflow-hidden border-2 border-pixel-border">
+      {/* Provider badge */}
+      <div className="absolute top-3 right-3 z-[1000] rounded border-2 border-pixel-border bg-white/95 px-2.5 py-1 text-[10px] font-mono font-bold shadow-pixel-sm">
+        {GOONG_MAP_KEY ? "🗺️ Bản đồ Goong.io" : "🗺️ OpenStreetMap"}
+      </div>
+
       {/* Banner chế độ chọn vị trí */}
       {selectionMode && (
         <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[1000] rounded border-2 border-pixel-border bg-white px-3 py-1.5 shadow-pixel text-xs font-bold font-mono">
@@ -132,10 +147,7 @@ export default function LeafletInnerMap({
         scrollWheelZoom={true}
         className="h-full w-full"
       >
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
+        <TileLayer attribution={attribution} url={tileUrl} />
 
         <MapEventsHandler onSelect={onSelectLocation} />
         <MapBoundsUpdater pickup={pickup} destination={destination} driver={driverLocation} />

@@ -1,142 +1,183 @@
-import Link from "next/link";
-import { Car, MapPin, ShieldCheck, ArrowRight, Zap, Database, Activity } from "lucide-react";
+"use client";
+
+import { useState, useTransition, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useAuth } from "@/hooks";
+import { toast } from "sonner";
+import { Car, UserCheck, ShieldCheck, Zap, Sparkles } from "lucide-react";
+import type { UserRole } from "@/types";
+
+function DirectLoginContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const initialRole = (searchParams.get("role") as UserRole) || "Rider";
+  const redirectPath = searchParams.get("redirect");
+
+  const [role, setRole] = useState<UserRole>(initialRole === "Driver" ? "Driver" : "Rider");
+  const [customUserId, setCustomUserId] = useState<string>("");
+  const [useCustomId, setUseCustomId] = useState<boolean>(false);
+  const [isPending, startTransition] = useTransition();
+
+  const { user, isAuthenticated, login, isLoading } = useAuth();
+
+  // Nếu người dùng đã đăng nhập, tự động chuyển vào dashboard tương ứng
+  useEffect(() => {
+    if (!isLoading && isAuthenticated && user) {
+      const target = redirectPath || (user.role === "Driver" ? "/driver" : "/rider");
+      router.replace(target);
+    }
+  }, [isLoading, isAuthenticated, user, redirectPath, router]);
+
+  const handleLogin = (selectedRole?: UserRole) => {
+    const targetRole = selectedRole || role;
+    startTransition(async () => {
+      try {
+        const userId = useCustomId && customUserId.trim() ? customUserId.trim() : undefined;
+        const loggedInUser = await login(targetRole, userId);
+        toast.success(`Đăng nhập thành công!`, {
+          description: `Chào mừng ${loggedInUser.name} (${loggedInUser.role})`,
+        });
+
+        const target = redirectPath || (targetRole === "Driver" ? "/driver" : "/rider");
+        router.push(target);
+      } catch (err: unknown) {
+        toast.error("Không thể đăng nhập", {
+          description: (err as Error).message,
+        });
+      }
+    });
+  };
+
+  return (
+    <div className="flex min-h-screen items-center justify-center pixel-grid-bg p-4">
+      <div className="w-full max-w-md">
+        {/* Header Logo */}
+        <div className="mb-6 text-center">
+          <div className="inline-flex items-center gap-2 rounded border-2 border-pixel-border bg-taxi px-4 py-2 shadow-pixel">
+            <Car className="h-6 w-6 text-pixel-border" />
+            <span className="font-mono text-xl font-black tracking-wider text-pixel-border">
+              SWIFTRIDE
+            </span>
+          </div>
+          <p className="mt-2 text-xs font-semibold uppercase tracking-widest text-pixel-muted">
+            Microservices Ride-Hailing Platform
+          </p>
+        </div>
+
+        {/* Card đăng nhập chính */}
+        <div className="pixel-card rounded-lg p-6 bg-white">
+          <div className="mb-6 border-b-2 border-pixel-border pb-4">
+            <h1 className="text-xl font-bold tracking-tight text-pixel-border">
+              Chọn vai trò trải nghiệm
+            </h1>
+            <p className="text-xs text-pixel-muted mt-1">
+              Đăng nhập qua API Gateway YARP (Port 5000) & Goong.io Maps
+            </p>
+          </div>
+
+          {/* Role selector tabs */}
+          <div className="grid grid-cols-2 gap-3 mb-6">
+            <button
+              type="button"
+              onClick={() => setRole("Rider")}
+              className={`flex flex-col items-center gap-2 rounded border-2 border-pixel-border p-4 font-bold transition-all ${
+                role === "Rider"
+                  ? "bg-taxi text-pixel-border shadow-pixel-sm translate-x-[1px] translate-y-[1px]"
+                  : "bg-white text-pixel-muted hover:bg-slate-50 shadow-pixel"
+              }`}
+            >
+              <UserCheck className="h-7 w-7" />
+              <span>Rider (Đặt xe)</span>
+              <span className="text-[10px] font-normal opacity-80">Gọi xe & Bản đồ</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setRole("Driver")}
+              className={`flex flex-col items-center gap-2 rounded border-2 border-pixel-border p-4 font-bold transition-all ${
+                role === "Driver"
+                  ? "bg-pixel-green text-white shadow-pixel-sm translate-x-[1px] translate-y-[1px]"
+                  : "bg-white text-pixel-muted hover:bg-slate-50 shadow-pixel"
+              }`}
+            >
+              <Car className="h-7 w-7" />
+              <span>Driver (Tài xế)</span>
+              <span className="text-[10px] font-normal opacity-80">Nhận cuốc & GPS</span>
+            </button>
+          </div>
+
+          {/* Tùy chọn nâng cao User ID */}
+          <div className="mb-6 rounded border border-slate-200 bg-slate-50 p-3">
+            <label className="flex items-center gap-2 text-xs font-medium cursor-pointer text-slate-700">
+              <input
+                type="checkbox"
+                checked={useCustomId}
+                onChange={(e) => setUseCustomId(e.target.checked)}
+                className="rounded border-pixel-border"
+              />
+              <span>Tùy chỉnh User ID (UUID)</span>
+            </label>
+
+            {useCustomId && (
+              <div className="mt-2">
+                <input
+                  type="text"
+                  placeholder="e.g. 59ef9d6b-f959-4cca-9443-fa4a5777bca4"
+                  value={customUserId}
+                  onChange={(e) => setCustomUserId(e.target.value)}
+                  className="w-full rounded border-2 border-pixel-border bg-white p-2 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-taxi"
+                />
+                <button
+                  type="button"
+                  onClick={() => setCustomUserId(crypto.randomUUID())}
+                  className="mt-1 text-[11px] text-blue-600 hover:underline"
+                >
+                  Tạo UUID ngẫu nhiên
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Action button */}
+          <button
+            type="button"
+            disabled={isPending}
+            onClick={() => handleLogin()}
+            className="w-full pixel-btn-primary flex items-center justify-center gap-2 rounded-md py-3 text-sm tracking-wide disabled:opacity-50"
+          >
+            {isPending ? (
+              <span className="inline-flex items-center gap-2">
+                <Zap className="h-4 w-4 animate-spin" />
+                Đang cấp phát token qua Gateway...
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-2">
+                <Sparkles className="h-4 w-4" />
+                Đăng nhập ngay với quyền {role}
+              </span>
+            )}
+          </button>
+
+          {/* Footer security badges */}
+          <div className="mt-6 flex items-center justify-center gap-2 text-[11px] text-pixel-muted">
+            <ShieldCheck className="h-4 w-4 text-emerald-600" />
+            <span>Token được tự động inject vào mọi request tới Gateway</span>
+          </div>
+        </div>
+
+        {/* Quick hint box */}
+        <div className="mt-4 text-center text-xs text-slate-500">
+          Chạy 2 tài khoản: Mở thêm 1 cửa sổ ẩn danh (Incognito) để đóng vai Tài xế và Người đi xe.
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function HomePage() {
   return (
-    <div className="flex min-h-screen flex-col pixel-grid-bg">
-      {/* Navigation Top */}
-      <header className="border-b-2 border-pixel-border bg-white px-6 py-4 shadow-sm">
-        <div className="mx-auto flex max-w-6xl items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="rounded border-2 border-pixel-border bg-taxi p-1.5 shadow-pixel-sm">
-              <Car className="h-5 w-5 text-pixel-border" />
-            </div>
-            <span className="font-mono text-xl font-black text-pixel-border">SWIFTRIDE</span>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <Link
-              href="/login?role=Rider"
-              className="pixel-btn-secondary rounded px-3 py-1.5 text-xs font-bold"
-            >
-              Rider Login
-            </Link>
-            <Link
-              href="/login?role=Driver"
-              className="pixel-btn-primary rounded px-3 py-1.5 text-xs font-bold"
-            >
-              Driver Login
-            </Link>
-          </div>
-        </div>
-      </header>
-
-      {/* Hero Section */}
-      <main className="flex-1 px-4 py-12">
-        <div className="mx-auto max-w-4xl text-center">
-          <div className="mb-4 inline-flex items-center gap-2 rounded-full border-2 border-pixel-border bg-amber-100 px-3 py-1 text-xs font-bold text-amber-900 shadow-pixel-sm">
-            <Zap className="h-3.5 w-3.5 text-amber-600" />
-            <span>Next.js 16.4.3 App Router + .NET 10 Microservices</span>
-          </div>
-
-          <h1 className="mb-4 font-mono text-3xl font-black tracking-tight text-pixel-border sm:text-5xl">
-            ĐẶT XE CÔNG NGHỆ <br />
-            <span className="bg-taxi px-2 text-pixel-border">CHUẨN MICROSERVICES</span>
-          </h1>
-
-          <p className="mx-auto mb-8 max-w-2xl text-sm leading-relaxed text-slate-600 sm:text-base">
-            Hệ thống sàn giao dịch gọi xe 2 phía (Two-Sided Marketplace). Trải nghiệm đặt xe thời gian thực,
-            tính giá động (Surge Pricing) bằng MongoDB Geo-Spatial, vòng đời chuyến đi Transactional Outbox
-            và sổ cái kế toán Double-Entry.
-          </p>
-
-          {/* Action Cards */}
-          <div className="grid gap-6 sm:grid-cols-2 text-left mb-12">
-            {/* Rider Card */}
-            <div className="pixel-card rounded-lg p-6 flex flex-col justify-between">
-              <div>
-                <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-lg border-2 border-pixel-border bg-taxi shadow-pixel-sm">
-                  <MapPin className="h-6 w-6 text-pixel-border" />
-                </div>
-                <h2 className="text-xl font-black text-pixel-border mb-2 font-mono">
-                  Dành cho Rider
-                </h2>
-                <p className="text-xs text-slate-600 leading-relaxed mb-4">
-                  Chọn điểm đón & điểm đến trên bản đồ Leaflet OpenStreetMap. Nhận báo giá tức thì với
-                  thuật toán Route Estimator và theo dõi xe tài xế theo thời gian thực.
-                </p>
-              </div>
-
-              <Link
-                href="/login?role=Rider"
-                className="pixel-btn-primary rounded-md py-3 px-4 flex items-center justify-between text-sm font-bold"
-              >
-                <span>Vào ứng dụng Đặt xe</span>
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-            </div>
-
-            {/* Driver Card */}
-            <div className="pixel-card rounded-lg p-6 flex flex-col justify-between">
-              <div>
-                <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-lg border-2 border-pixel-border bg-emerald-400 shadow-pixel-sm">
-                  <Car className="h-6 w-6 text-pixel-border" />
-                </div>
-                <h2 className="text-xl font-black text-pixel-border mb-2 font-mono">
-                  Dành cho Driver
-                </h2>
-                <p className="text-xs text-slate-600 leading-relaxed mb-4">
-                  Bật định vị GPS Geolocation để cập nhật vị trí lên MongoDB. Nhận chuyến đi trong bán
-                  kính 5km, thực hiện quy trình Đón khách $\rightarrow$ Trả khách an toàn.
-                </p>
-              </div>
-
-              <Link
-                href="/login?role=Driver"
-                className="pixel-btn-secondary rounded-md py-3 px-4 flex items-center justify-between text-sm font-bold"
-              >
-                <span>Vào bảng điều khiển Tài xế</span>
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-            </div>
-          </div>
-
-          {/* Architecture highlights */}
-          <div className="rounded-lg border-2 border-pixel-border bg-white p-6 shadow-pixel text-left">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-pixel-muted mb-4 flex items-center gap-2">
-              <Activity className="h-4 w-4 text-taxi" />
-              <span>Hạ tầng Microservices kết nối</span>
-            </h3>
-
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
-              <div className="rounded border border-slate-200 bg-slate-50 p-3">
-                <span className="font-bold block text-slate-800">API Gateway</span>
-                <span className="text-[11px] text-slate-500">YARP Port 5000</span>
-              </div>
-              <div className="rounded border border-slate-200 bg-slate-50 p-3">
-                <span className="font-bold block text-slate-800">TripService</span>
-                <span className="text-[11px] text-slate-500">PostgreSQL (tripdb)</span>
-              </div>
-              <div className="rounded border border-slate-200 bg-slate-50 p-3">
-                <span className="font-bold block text-slate-800">MatchingService</span>
-                <span className="text-[11px] text-slate-500">MongoDB (matchdb)</span>
-              </div>
-              <div className="rounded border border-slate-200 bg-slate-50 p-3">
-                <span className="font-bold block text-slate-800">PaymentService</span>
-                <span className="text-[11px] text-slate-500">PostgreSQL (paydb)</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </main>
-
-      {/* Footer */}
-      <footer className="border-t-2 border-pixel-border bg-white py-4 text-center text-xs text-slate-500">
-        <div className="flex items-center justify-center gap-2">
-          <ShieldCheck className="h-4 w-4 text-emerald-600" />
-          <span>SwiftRide Platform - Clean Architecture & Microservices 2026</span>
-        </div>
-      </footer>
-    </div>
+    <Suspense fallback={<div className="p-8 text-center font-mono text-xs">ĐANG TẢI GIAO DIỆN...</div>}>
+      <DirectLoginContent />
+    </Suspense>
   );
 }
