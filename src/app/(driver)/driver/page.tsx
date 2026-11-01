@@ -1,14 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { matchingAdapter } from "@/lib/api/adapters/matching.adapter";
-import { tripAdapter } from "@/lib/api/adapters/trip.adapter";
-import { getErrorMessage } from "@/lib/api/errors";
-import { formatVND, formatDate } from "@/lib/utils";
+import { useState } from "react";
+import { useDriverLocation, useTrip, useTripActions } from "@/hooks";
+import { getErrorMessage } from "@/lib/errors";
+import { formatVND } from "@/lib/utils";
 import { DynamicMap } from "@/components/shared/map/DynamicMap";
 import { PixelStatusBadge } from "@/components/shared/pixel/PixelStatusBadge";
-import { PixelBadge } from "@/components/shared/pixel/PixelBadge";
 import { toast } from "sonner";
 import {
   Car,
@@ -16,64 +13,25 @@ import {
   Power,
   Navigation,
   CheckCircle,
-  ArrowRight,
-  RefreshCw,
   Search,
-  Sparkles,
-  AlertTriangle,
 } from "lucide-react";
-import type { LatLng } from "@/lib/map/haversine";
 
 export default function DriverPage() {
-  const queryClient = useQueryClient();
-
-  // Trạng thái tài xế
-  const [isOnline, setIsOnline] = useState<boolean>(true);
-  const [driverPos, setDriverPos] = useState<LatLng>({ lat: 10.7725, lng: 106.699 }); // Bến Thành mặc định
-  const [gpsError, setGpsError] = useState<string | null>(null);
-
-  // Chuyến đi đang xử lý
   const [activeTripId, setActiveTripId] = useState<string>("");
   const [inputTripId, setInputTripId] = useState<string>("");
 
-  // 1. Quản lý GPS Geolocation API
-  useEffect(() => {
-    if (!isOnline || !navigator.geolocation) return;
+  // Hook 1: Định vị GPS & đồng bộ MongoDB qua Gateway
+  const { isOnline, toggleOnline, driverPos, gpsError } = useDriverLocation(true);
 
-    const watchId = navigator.geolocation.watchPosition(
-      (pos) => {
-        const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        setDriverPos(coords);
-        setGpsError(null);
+  // Hook 2: Polling thông tin chuyến đi đang làm việc
+  const { data: trip } = useTrip(activeTripId);
 
-        // Đẩy tọa độ lên MongoDB MatchingService
-        matchingAdapter.updateLocation({
-          lat: coords.lat,
-          lng: coords.lng,
-          isAvailable: true,
-        }).catch(() => {
-          // im lặng retry ở lần gửi kế tiếp
-        });
-      },
-      (err) => {
-        setGpsError(err.message);
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 }
-    );
+  // Hook 3: Các hành động của tài xế (Accept, Pickup, Dropoff)
+  const { accept, pickup, dropoff, isProcessing } = useTripActions(activeTripId);
 
-    return () => navigator.geolocation.clearWatch(watchId);
-  }, [isOnline]);
-
-  // Cập nhật vị trí thủ công khi đổi nút Online
   const handleToggleOnline = async () => {
-    const nextState = !isOnline;
-    setIsOnline(nextState);
     try {
-      await matchingAdapter.updateLocation({
-        lat: driverPos.lat,
-        lng: driverPos.lng,
-        isAvailable: nextState,
-      });
+      const nextState = await toggleOnline();
       toast.success(nextState ? "Đã BẬT trạng thái sẵn sàng nhận chuyến" : "Đã TẮT chế độ nhận chuyến");
     } catch (err) {
       toast.error("Lỗi cập nhật trạng thái lên MatchingService", {
@@ -82,65 +40,50 @@ export default function DriverPage() {
     }
   };
 
-  // 2. Polling thông tin chuyến đi đang làm việc
-  const { data: trip, isLoading: isLoadingTrip } = useQuery({
-    queryKey: ["driverTrip", activeTripId],
-    queryFn: () => (activeTripId ? tripAdapter.getTrip(activeTripId) : null),
-    enabled: !!activeTripId,
-    refetchInterval: (query) => {
-      const status = query.state.data?.status;
-      if (status === "Paid" || status === "Cancelled" || status === "Failed") {
-        return false;
-      }
-      return 3000;
-    },
-  });
+  const handleAccept = () => {
+    accept.mutate(undefined, {
+      onSuccess: (updated) => {
+        toast.success("Đã nhận chuyến đi thành công!", {
+          description: `Hãy di chuyển đến đón khách tại: ${updated.pickup}`,
+        });
+      },
+      onError: (err) => {
+        toast.error("Không thể nhận chuyến", {
+          description: getErrorMessage(err),
+        });
+      },
+    });
+  };
 
-  // 3. Các mutations thao tác hành trình
-  const acceptMutation = useMutation({
-    mutationFn: () => tripAdapter.acceptTrip(activeTripId),
-    onSuccess: (updated) => {
-      toast.success("Đã nhận chuyến đi thành công!", {
-        description: `Hãy di chuyển đến đón khách tại: ${updated.pickup}`,
-      });
-      queryClient.invalidateQueries({ queryKey: ["driverTrip", activeTripId] });
-    },
-    onError: (err) => {
-      toast.error("Không thể nhận chuyến", {
-        description: getErrorMessage(err),
-      });
-    },
-  });
+  const handlePickup = () => {
+    pickup.mutate(undefined, {
+      onSuccess: (updated) => {
+        toast.success("Đã xác nhận đón khách!", {
+          description: `Bắt đầu di chuyển đến: ${updated.destination}`,
+        });
+      },
+      onError: (err) => {
+        toast.error("Không thể chuyển trạng thái", {
+          description: getErrorMessage(err),
+        });
+      },
+    });
+  };
 
-  const pickupMutation = useMutation({
-    mutationFn: () => tripAdapter.pickupTrip(activeTripId),
-    onSuccess: (updated) => {
-      toast.success("Đã xác nhận đón khách!", {
-        description: `Bắt đầu di chuyển đến: ${updated.destination}`,
-      });
-      queryClient.invalidateQueries({ queryKey: ["driverTrip", activeTripId] });
-    },
-    onError: (err) => {
-      toast.error("Không thể chuyển trạng thái", {
-        description: getErrorMessage(err),
-      });
-    },
-  });
-
-  const dropoffMutation = useMutation({
-    mutationFn: () => tripAdapter.dropoffTrip(activeTripId),
-    onSuccess: (updated) => {
-      toast.success("Đã hoàn thành chuyến đi!", {
-        description: `Chuyến xe đã kết thúc. Outbox Saga đang kích hoạt thanh toán.`,
-      });
-      queryClient.invalidateQueries({ queryKey: ["driverTrip", activeTripId] });
-    },
-    onError: (err) => {
-      toast.error("Không thể trả khách", {
-        description: getErrorMessage(err),
-      });
-    },
-  });
+  const handleDropoff = () => {
+    dropoff.mutate(undefined, {
+      onSuccess: () => {
+        toast.success("Đã hoàn thành chuyến đi!", {
+          description: `Chuyến xe đã kết thúc. Outbox Saga đang kích hoạt thanh toán.`,
+        });
+      },
+      onError: (err) => {
+        toast.error("Không thể trả khách", {
+          description: getErrorMessage(err),
+        });
+      },
+    });
+  };
 
   const handleSearchTrip = () => {
     if (!inputTripId.trim()) {
@@ -196,7 +139,7 @@ export default function DriverPage() {
             {gpsError ? (
               <p className="text-[10px] text-amber-700">Lưu ý GPS: {gpsError} (Dùng tọa độ giả lập)</p>
             ) : (
-              <p className="text-[10px] text-emerald-700">✓ Đang đồng bộ vị trí thực với MongoDB</p>
+              <p className="text-[10px] text-emerald-700">✓ Đang đồng bộ vị trí thực với MongoDB qua Gateway</p>
             )}
           </div>
         </div>
@@ -279,36 +222,36 @@ export default function DriverPage() {
               {trip.status === "Requested" && (
                 <button
                   type="button"
-                  disabled={acceptMutation.isPending}
-                  onClick={() => acceptMutation.mutate()}
+                  disabled={isProcessing}
+                  onClick={handleAccept}
                   className="w-full pixel-btn-primary rounded-md py-3 text-xs font-bold flex items-center justify-center gap-2 disabled:opacity-50"
                 >
                   <Car className="h-4 w-4" />
-                  <span>{acceptMutation.isPending ? "Đang nhận..." : "CHẤP NHẬN CHUYẾN ĐI (Accept)"}</span>
+                  <span>{accept.isPending ? "Đang nhận..." : "CHẤP NHẬN CHUYẾN ĐI (Accept)"}</span>
                 </button>
               )}
 
               {trip.status === "DriverAccepted" && (
                 <button
                   type="button"
-                  disabled={pickupMutation.isPending}
-                  onClick={() => pickupMutation.mutate()}
+                  disabled={isProcessing}
+                  onClick={handlePickup}
                   className="w-full pixel-btn-primary rounded-md py-3 text-xs font-bold flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-white disabled:opacity-50"
                 >
                   <Navigation className="h-4 w-4" />
-                  <span>{pickupMutation.isPending ? "Đang xử lý..." : "ĐÃ ĐÓN KHÁCH (Pick Up)"}</span>
+                  <span>{pickup.isPending ? "Đang xử lý..." : "ĐÃ ĐÓN KHÁCH (Pick Up)"}</span>
                 </button>
               )}
 
               {trip.status === "PickedUp" && (
                 <button
                   type="button"
-                  disabled={dropoffMutation.isPending}
-                  onClick={() => dropoffMutation.mutate()}
+                  disabled={isProcessing}
+                  onClick={handleDropoff}
                   className="w-full pixel-btn-primary rounded-md py-3 text-xs font-bold flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white disabled:opacity-50"
                 >
                   <CheckCircle className="h-4 w-4" />
-                  <span>{dropoffMutation.isPending ? "Đang xử lý..." : "ĐÃ TRẢ KHÁCH (Drop Off)"}</span>
+                  <span>{dropoff.isPending ? "Đang xử lý..." : "ĐÃ TRẢ KHÁCH (Drop Off)"}</span>
                 </button>
               )}
 

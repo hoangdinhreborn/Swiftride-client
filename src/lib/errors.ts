@@ -1,4 +1,4 @@
-import type { ProblemDetails } from "@/types/backend";
+import type { ProblemDetails } from "@/types";
 
 export class ProblemDetailsError extends Error {
   status: number;

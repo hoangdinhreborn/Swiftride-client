@@ -2,17 +2,14 @@
 
 import { use, useState } from "react";
 import Link from "next/link";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { tripAdapter } from "@/lib/api/adapters/trip.adapter";
-import { paymentAdapter } from "@/lib/api/adapters/payment.adapter";
-import { getErrorMessage } from "@/lib/api/errors";
+import { useTrip, usePayment } from "@/hooks";
+import { getErrorMessage } from "@/lib/errors";
 import { formatVND, formatDate } from "@/lib/utils";
 import { PixelStepper } from "@/components/shared/pixel/PixelStepper";
 import { PixelStatusBadge } from "@/components/shared/pixel/PixelStatusBadge";
 import { toast } from "sonner";
 import {
   Car,
-  MapPin,
   CreditCard,
   CheckCircle2,
   AlertCircle,
@@ -24,59 +21,41 @@ import {
 
 export default function TripTrackPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: tripId } = use(params);
-  const queryClient = useQueryClient();
-
   const [paymentToken, setPaymentToken] = useState<string>("tok_fake_card");
 
-  // Polling thông tin chuyến đi mỗi 3 giây, dừng khi đã Paid hoặc Cancelled
-  const {
-    data: trip,
-    isLoading,
-    error,
-  } = useQuery({
-    queryKey: ["trip", tripId],
-    queryFn: () => tripAdapter.getTrip(tripId),
-    refetchInterval: (query) => {
-      const status = query.state.data?.status;
-      if (status === "Paid" || status === "Cancelled" || status === "Failed") {
-        return false;
-      }
-      return 3000;
-    },
-  });
+  // Hook 1: Tự động Polling thông tin chuyến đi mỗi 3 giây qua Gateway
+  const { data: trip, isLoading, error } = useTrip(tripId);
 
-  // Xử lý thanh toán
-  const payMutation = useMutation({
-    mutationFn: async () => {
-      const idempotencyKey = crypto.randomUUID();
-      return paymentAdapter.createPayment(
-        {
-          tripId,
-          paymentToken,
+  // Hook 2: Mutation xử lý thanh toán và đồng bộ sổ cái
+  const payMutation = usePayment(tripId);
+
+  const handlePay = () => {
+    payMutation.mutate(
+      {
+        tripId,
+        paymentToken,
+      },
+      {
+        onSuccess: (payment) => {
+          toast.success("Yêu cầu thanh toán đã được ghi nhận!", {
+            description: `Mã GD: ${payment.id.substring(0, 8)}... Sổ cái kép đã ghi nhận.`,
+          });
         },
-        idempotencyKey
-      );
-    },
-    onSuccess: (payment) => {
-      toast.success("Yêu cầu thanh toán đã được gửi!", {
-        description: `Mã GD: ${payment.id.substring(0, 8)}... Đang đồng bộ sổ cái.`,
-      });
-      // Invalidate query để cập nhật lại trạng thái chuyến đi
-      queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
-    },
-    onError: (err) => {
-      toast.error("Thanh toán thất bại", {
-        description: getErrorMessage(err),
-      });
-    },
-  });
+        onError: (err) => {
+          toast.error("Thanh toán thất bại", {
+            description: getErrorMessage(err),
+          });
+        },
+      }
+    );
+  };
 
   if (isLoading) {
     return (
       <div className="flex min-h-[500px] items-center justify-center">
         <div className="pixel-card rounded-lg p-6 text-center animate-pulse">
           <Clock className="h-8 w-8 mx-auto text-taxi mb-2" />
-          <p className="font-mono text-sm font-bold">ĐANG TẢI DỮ LIỆU CHUYẾN ĐI...</p>
+          <p className="font-mono text-sm font-bold">ĐANG TẢI DỮ LIỆU TỪ GATEWAY...</p>
         </div>
       </div>
     );
@@ -203,7 +182,7 @@ export default function TripTrackPage({ params }: { params: Promise<{ id: string
               <button
                 type="button"
                 disabled={payMutation.isPending}
-                onClick={() => payMutation.mutate()}
+                onClick={handlePay}
                 className="pixel-btn-primary rounded-md px-6 py-2.5 text-xs font-bold flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 {payMutation.isPending ? (

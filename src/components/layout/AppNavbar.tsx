@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useAuthStore } from "@/stores/authStore";
-import { Car, LogOut, User, ShieldCheck } from "lucide-react";
+import { useAuth } from "@/hooks";
+import { Car, LogOut, User } from "lucide-react";
 import { PixelBadge } from "@/components/shared/pixel/PixelBadge";
 
 interface Props {
@@ -12,11 +12,10 @@ interface Props {
 
 export function AppNavbar({ role }: Props) {
   const router = useRouter();
-  const user = useAuthStore((s) => s.user);
-  const logout = useAuthStore((s) => s.logout);
+  const { user, logout } = useAuth();
 
-  const handleLogout = async () => {
-    await logout();
+  const handleLogout = () => {
+    logout();
     router.push("/login");
   };
 

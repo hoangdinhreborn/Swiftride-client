@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMapEvents, useMap } from "react-leaflet";
 import L from "leaflet";
 import type { LatLng } from "@/lib/map/haversine";
-import type { NearbyDriverDto } from "@/types/backend";
+import type { NearbyDriverDto } from "@/types";
 
 // Custom SVG Icons
 function createDivIcon(svgHtml: string, className = "", size: [number, number] = [32, 32]) {

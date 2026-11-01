@@ -1,5 +1,5 @@
 import { PixelBadge } from "./PixelBadge";
-import type { TripStatus } from "@/types/backend";
+import type { TripStatus } from "@/types";
 
 interface Props {
   status: TripStatus | string;

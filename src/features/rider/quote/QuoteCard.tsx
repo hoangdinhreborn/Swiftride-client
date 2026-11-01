@@ -3,7 +3,7 @@
 import { formatVND, formatDuration } from "@/lib/utils";
 import { PixelBadge } from "@/components/shared/pixel/PixelBadge";
 import { Zap, Clock, Navigation, Tag, ArrowRight } from "lucide-react";
-import type { QuoteDto } from "@/types/backend";
+import type { QuoteDto } from "@/types";
 
 interface Props {
   quote: QuoteDto | null;
@@ -15,7 +15,7 @@ interface Props {
 export function QuoteCard({ quote, isLoading, onConfirmBooking, isBooking }: Props) {
   if (isLoading) {
     return (
-      <div className="pixel-card rounded-lg p-5 animate-pulse bg-slate-50">
+      <div className="pixel-card rounded-lg p-5 animate-pulse bg-slate-50 border-2 border-pixel-border">
         <div className="h-4 w-1/3 bg-slate-200 rounded mb-4" />
         <div className="h-8 w-1/2 bg-slate-300 rounded mb-3" />
         <div className="h-3 w-3/4 bg-slate-200 rounded" />

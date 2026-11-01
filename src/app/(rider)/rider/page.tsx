@@ -1,17 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { useQuote, useNearbyDrivers, useCreateTrip } from "@/hooks";
 import { DynamicMap } from "@/components/shared/map/DynamicMap";
 import { BookingForm } from "@/features/rider/booking/BookingForm";
 import { QuoteCard } from "@/features/rider/quote/QuoteCard";
-import { matchingAdapter } from "@/lib/api/adapters/matching.adapter";
-import { tripAdapter } from "@/lib/api/adapters/trip.adapter";
-import { getErrorMessage } from "@/lib/api/errors";
+import { getErrorMessage } from "@/lib/errors";
 import { PRESET_LOCATIONS, type LatLng } from "@/lib/map/haversine";
-import type { QuoteDto } from "@/types/backend";
+import { toast } from "sonner";
 
 export default function RiderPage() {
   const router = useRouter();
@@ -32,44 +29,25 @@ export default function RiderPage() {
   const [promoCode, setPromoCode] = useState<string>("");
   const [selectionMode, setSelectionMode] = useState<"pickup" | "destination" | null>(null);
 
-  const [quote, setQuote] = useState<QuoteDto | null>(null);
-  const [isLoadingQuote, setIsLoadingQuote] = useState<boolean>(false);
-  const [isBooking, setIsBooking] = useState<boolean>(false);
+  // Hook 1: Tính toán báo giá tự động khi có đủ 2 điểm (TanStack Query)
+  const quoteRequest =
+    pickupPos && destinationPos
+      ? {
+          pickupLat: pickupPos.lat,
+          pickupLng: pickupPos.lng,
+          destinationLat: destinationPos.lat,
+          destinationLng: destinationPos.lng,
+          promoCode: promoCode.trim() || undefined,
+        }
+      : null;
 
-  // Lấy danh sách tài xế lân cận quanh điểm đón để hiển thị trên bản đồ
-  const { data: nearbyDrivers } = useQuery({
-    queryKey: ["nearbyDrivers", pickupPos?.lat, pickupPos?.lng],
-    queryFn: () => (pickupPos ? matchingAdapter.matchDrivers(pickupPos.lat, pickupPos.lng) : []),
-    enabled: !!pickupPos,
-    refetchInterval: 6000, // quét lại mỗi 6s
-  });
+  const { data: quote, isLoading: isLoadingQuote, refetch: refetchQuote } = useQuote(quoteRequest);
 
-  // Tự động tính giá khi có đủ điểm đón & điểm đến
-  const fetchQuote = async () => {
-    if (!pickupPos || !destinationPos) return;
-    setIsLoadingQuote(true);
-    try {
-      const q = await matchingAdapter.getQuote({
-        pickupLat: pickupPos.lat,
-        pickupLng: pickupPos.lng,
-        destinationLat: destinationPos.lat,
-        destinationLng: destinationPos.lng,
-        promoCode: promoCode.trim() || undefined,
-      });
-      setQuote(q);
-    } catch (err) {
-      toast.error("Không thể lấy báo giá", {
-        description: getErrorMessage(err),
-      });
-    } finally {
-      setIsLoadingQuote(false);
-    }
-  };
+  // Hook 2: Quét danh sách tài xế lân cận quanh điểm đón
+  const { data: nearbyDrivers } = useNearbyDrivers(pickupPos?.lat, pickupPos?.lng);
 
-  useEffect(() => {
-    fetchQuote();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pickupPos?.lat, pickupPos?.lng, destinationPos?.lat, destinationPos?.lng]);
+  // Hook 3: Mutation tạo chuyến đi
+  const createTripMutation = useCreateTrip();
 
   const handleSelectOnMap = (pos: LatLng) => {
     if (selectionMode === "pickup") {
@@ -85,15 +63,14 @@ export default function RiderPage() {
     }
   };
 
-  const handleConfirmBooking = async () => {
+  const handleConfirmBooking = () => {
     if (!pickupPos || !destinationPos) {
       toast.error("Vui lòng chọn đầy đủ điểm đón và điểm đến");
       return;
     }
 
-    setIsBooking(true);
-    try {
-      const trip = await tripAdapter.requestTrip({
+    createTripMutation.mutate(
+      {
         pickup: pickupName.trim() || "Điểm đón",
         pickupLat: pickupPos.lat,
         pickupLng: pickupPos.lng,
@@ -101,20 +78,21 @@ export default function RiderPage() {
         destinationLat: destinationPos.lat,
         destinationLng: destinationPos.lng,
         promoCode: promoCode.trim() || undefined,
-      });
-
-      toast.success("Đặt xe thành công!", {
-        description: `Mã chuyến: ${trip.id.substring(0, 8)}... Đang tìm tài xế.`,
-      });
-
-      router.push(`/rider/track/${trip.id}`);
-    } catch (err) {
-      toast.error("Không thể tạo chuyến đi", {
-        description: getErrorMessage(err),
-      });
-    } finally {
-      setIsBooking(false);
-    }
+      },
+      {
+        onSuccess: (trip) => {
+          toast.success("Đặt xe thành công!", {
+            description: `Mã chuyến: ${trip.id.substring(0, 8)}... Đang tìm tài xế.`,
+          });
+          router.push(`/rider/track/${trip.id}`);
+        },
+        onError: (err) => {
+          toast.error("Không thể tạo chuyến đi", {
+            description: getErrorMessage(err),
+          });
+        },
+      }
+    );
   };
 
   return (
@@ -134,15 +112,15 @@ export default function RiderPage() {
           setPromoCode={setPromoCode}
           selectionMode={selectionMode}
           setSelectionMode={setSelectionMode}
-          onGetQuote={fetchQuote}
+          onGetQuote={() => refetchQuote()}
           isLoadingQuote={isLoadingQuote}
         />
 
         <QuoteCard
-          quote={quote}
+          quote={quote || null}
           isLoading={isLoadingQuote}
           onConfirmBooking={handleConfirmBooking}
-          isBooking={isBooking}
+          isBooking={createTripMutation.isPending}
         />
       </div>
 

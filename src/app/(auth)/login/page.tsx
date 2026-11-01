@@ -2,10 +2,10 @@
 
 import { useState, useTransition, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useAuthStore } from "@/stores/authStore";
+import { useAuth } from "@/hooks";
 import { toast } from "sonner";
 import { Car, UserCheck, ShieldCheck, Zap, Sparkles } from "lucide-react";
-import type { UserRole } from "@/types/auth";
+import type { UserRole } from "@/types";
 
 function LoginForm() {
   const router = useRouter();
@@ -18,7 +18,7 @@ function LoginForm() {
   const [useCustomId, setUseCustomId] = useState<boolean>(false);
   const [isPending, startTransition] = useTransition();
 
-  const login = useAuthStore((s) => s.login);
+  const { login } = useAuth();
 
   const handleLogin = (selectedRole?: UserRole) => {
     const targetRole = selectedRole || role;
@@ -63,7 +63,7 @@ function LoginForm() {
               Chọn vai trò trải nghiệm
             </h1>
             <p className="text-xs text-pixel-muted mt-1">
-              Đăng nhập giả lập môi trường Development qua BFF & API Gateway
+              Đăng nhập giả lập môi trường Development qua API Gateway YARP (Port 5000)
             </p>
           </div>
 
@@ -140,7 +140,7 @@ function LoginForm() {
             {isPending ? (
               <span className="inline-flex items-center gap-2">
                 <Zap className="h-4 w-4 animate-spin" />
-                Đang cấp phát token...
+                Đang cấp phát token qua Gateway...
               </span>
             ) : (
               <span className="inline-flex items-center gap-2">
@@ -153,7 +153,7 @@ function LoginForm() {
           {/* Footer security badges */}
           <div className="mt-6 flex items-center justify-center gap-2 text-[11px] text-pixel-muted">
             <ShieldCheck className="h-4 w-4 text-emerald-600" />
-            <span>Token được mã hóa an toàn trong Cookie HttpOnly</span>
+            <span>Token được tự động inject vào mọi request tới Gateway</span>
           </div>
         </div>
 
@@ -168,7 +168,7 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div className="p-8 text-center">Đang tải...</div>}>
+    <Suspense fallback={<div className="p-8 text-center font-mono text-xs">ĐANG TẢI GIAO DIỆN...</div>}>
       <LoginForm />
     </Suspense>
   );

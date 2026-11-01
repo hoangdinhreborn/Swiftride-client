@@ -13,6 +13,7 @@ export interface LoginRequest {
 
 export interface AuthState {
   user: UserSession | null;
+  token: string | null;
   isLoading: boolean;
   isAuthenticated: boolean;
 }

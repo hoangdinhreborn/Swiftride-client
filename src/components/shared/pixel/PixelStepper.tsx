@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 import { Check, Clock, Car, Navigation, CreditCard, Sparkles } from "lucide-react";
-import type { TripStatus } from "@/types/backend";
+import type { TripStatus } from "@/types";
 
 interface Props {
   currentStatus: TripStatus | string;
