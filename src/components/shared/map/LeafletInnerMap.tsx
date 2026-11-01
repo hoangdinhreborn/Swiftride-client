@@ -10,7 +10,7 @@ import { MapPin, Flag, Navigation, Map as MapIcon } from "lucide-react";
 
 const GOONG_MAP_KEY = process.env.NEXT_PUBLIC_GOONG_MAP_KEY;
 
-// Custom SVG Icons sử dụng biểu tượng vector Lucide (không dùng emoji)
+// Custom SVG Icons sử dụng biểu tượng vector Lucide phẳng, cao cấp
 function createDivIcon(svgHtml: string, className = "", size: [number, number] = [32, 32]) {
   return L.divIcon({
     html: svgHtml,
@@ -21,7 +21,7 @@ function createDivIcon(svgHtml: string, className = "", size: [number, number] =
   });
 }
 
-// Marker Điểm đón (Lucide MapPin vector)
+// Marker Điểm đón khách (A)
 const pickupIcon = createDivIcon(`
   <div style="background-color: #10B981; border: 2px solid #0F172A; width: 32px; height: 32px; border-radius: 6px; box-shadow: 2px 2px 0px #0F172A; display: flex; align-items: center; justify-content: center;">
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -31,7 +31,7 @@ const pickupIcon = createDivIcon(`
   </div>
 `);
 
-// Marker Điểm đến (Lucide Flag vector)
+// Marker Điểm đến (B)
 const destinationIcon = createDivIcon(`
   <div style="background-color: #EF4444; border: 2px solid #0F172A; width: 32px; height: 32px; border-radius: 6px; box-shadow: 2px 2px 0px #0F172A; display: flex; align-items: center; justify-content: center;">
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -79,6 +79,8 @@ interface LeafletMapProps {
   nearbyDrivers?: NearbyDriverDto[];
   onSelectLocation?: (pos: LatLng) => void;
   selectionMode?: "pickup" | "destination" | null;
+  routeFrom?: LatLng | null;
+  routeTo?: LatLng | null;
 }
 
 function MapEventsHandler({ onSelect }: { onSelect?: (pos: LatLng) => void }) {
@@ -137,20 +139,26 @@ export default function LeafletInnerMap({
   nearbyDrivers = [],
   onSelectLocation,
   selectionMode,
+  routeFrom,
+  routeTo,
 }: LeafletMapProps) {
   const [roadCoordinates, setRoadCoordinates] = useState<[number, number][]>([]);
   const [routeStats, setRouteStats] = useState<{ distanceKm: number; durationMin: number } | null>(null);
 
+  // Xác định điểm bắt đầu và điểm kết thúc của tuyến đường OSRM
+  const fromPoint = routeFrom || pickup;
+  const toPoint = routeTo || destination;
+
   // Tự động phân tích và lấy tuyến đường lái xe uốn lượn thực tế từ OSRM
   useEffect(() => {
-    if (!pickup || !destination) {
+    if (!fromPoint || !toPoint) {
       setRoadCoordinates([]);
       setRouteStats(null);
       return;
     }
 
     let isMounted = true;
-    routingService.getRoute(pickup, destination).then((route) => {
+    routingService.getRoute(fromPoint, toPoint).then((route) => {
       if (!isMounted) return;
       if (route && route.coordinates.length > 0) {
         setRoadCoordinates(route.coordinates);
@@ -166,33 +174,34 @@ export default function LeafletInnerMap({
     return () => {
       isMounted = false;
     };
-  }, [pickup?.lat, pickup?.lng, destination?.lat, destination?.lng]);
+  }, [fromPoint?.lat, fromPoint?.lng, toPoint?.lat, toPoint?.lng]);
 
+  // Nền bản đồ: Ưu tiên Goong nếu có key, mặc định CARTO Voyager siêu đẹp, sắc nét
   const tileUrl = GOONG_MAP_KEY
-    ? `https://tiles.goong.io/{z}/{x}/{y}.png?api_key=${GOONG_MAP_KEY}`
-    : "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
+    ? `https://tiles.goong.io/assets/goong_light/{z}/{x}/{y}.png?api_key=${GOONG_MAP_KEY}`
+    : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
 
   const attribution = GOONG_MAP_KEY
     ? '&copy; <a href="https://goong.io/">Goong.io</a> Maps'
-    : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+    : '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 
   return (
     <div className="relative h-full w-full overflow-hidden border-2 border-pixel-border">
-      {/* Provider badge (Dùng Lucide Map icon) */}
+      {/* Provider badge */}
       <div className="absolute top-3 right-3 z-[1000] rounded border-2 border-pixel-border bg-white/95 px-2.5 py-1 text-[11px] font-mono font-bold shadow-pixel-sm flex items-center gap-1.5">
         <MapIcon className="h-3.5 w-3.5 text-blue-600" />
-        <span>{GOONG_MAP_KEY ? "Bản đồ Goong.io" : "OpenStreetMap + OSRM"}</span>
+        <span>{GOONG_MAP_KEY ? "Bản đồ Goong.io" : "Bản đồ CARTO Voyager + OSRM"}</span>
       </div>
 
-      {/* Thông tin lộ trình thực tế OSRM (Dùng Lucide Navigation icon) */}
+      {/* Thông tin lộ trình thực tế OSRM */}
       {routeStats && (
         <div className="absolute bottom-4 left-4 z-[1000] rounded border-2 border-pixel-border bg-white px-3 py-1.5 shadow-pixel text-xs font-mono font-bold flex items-center gap-2">
           <Navigation className="h-4 w-4 text-blue-600 fill-blue-600" />
-          <span>Tuyến đường OSRM: {routeStats.distanceKm} km (~{routeStats.durationMin} phút lái xe)</span>
+          <span>Tuyến đường: {routeStats.distanceKm} km (~{routeStats.durationMin} phút lái xe)</span>
         </div>
       )}
 
-      {/* Banner chế độ chọn vị trí (Dùng Lucide MapPin & Flag) */}
+      {/* Banner chế độ chọn vị trí */}
       {selectionMode && (
         <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[1000] rounded border-2 border-pixel-border bg-white px-3 py-1.5 shadow-pixel text-xs font-bold font-mono flex items-center gap-1.5">
           {selectionMode === "pickup" ? (
@@ -225,11 +234,11 @@ export default function LeafletInnerMap({
           routeCoordinates={roadCoordinates}
         />
 
-        {/* Marker Điểm đón */}
+        {/* Marker Điểm đón khách (A) */}
         {pickup && (
           <Marker position={[pickup.lat, pickup.lng]} icon={pickupIcon}>
             <Popup>
-              <div className="text-xs font-bold text-emerald-800">Điểm Đón (A)</div>
+              <div className="text-xs font-bold text-emerald-800">Điểm Đón Khách (A)</div>
               <div className="text-[11px] text-slate-500 font-mono">
                 {pickup.lat.toFixed(4)}, {pickup.lng.toFixed(4)}
               </div>
@@ -237,7 +246,7 @@ export default function LeafletInnerMap({
           </Marker>
         )}
 
-        {/* Marker Điểm đến */}
+        {/* Marker Điểm đến (B) */}
         {destination && (
           <Marker position={[destination.lat, destination.lng]} icon={destinationIcon}>
             <Popup>

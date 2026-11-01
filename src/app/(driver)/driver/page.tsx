@@ -130,34 +130,42 @@ export default function DriverPage() {
     toast.info(`Đang tra cứu chuyến: ${inputTripId.trim().substring(0, 8)}...`);
   };
 
-  // Xác định điểm đầu và điểm cuối của tuyến đường trên bản đồ tài xế theo từng giai đoạn hành trình
+  // Xác định các điểm ghim Marker và tuyến đường OSRM dẫn đường
   let mapPickup: LatLng | null = null;
   let mapDestination: LatLng | null = null;
+  let routeFrom: LatLng | null = null;
+  let routeTo: LatLng | null = null;
   let navigationBanner = "";
 
   if (trip && trip.pickupLat && trip.pickupLng) {
     const customerPickup: LatLng = { lat: trip.pickupLat, lng: trip.pickupLng };
     const customerDest: LatLng = { lat: trip.destinationLat, lng: trip.destinationLng };
 
+    // Marker A luôn ghim tại điểm đón của khách, Marker B luôn ghim tại điểm đến của khách
+    mapPickup = customerPickup;
+    mapDestination = customerDest;
+
     if (trip.status === "DriverAccepted") {
-      // Giai đoạn 1: Tài xế đã nhận cuốc -> Dẫn đường từ vị trí tài xế đến điểm đón của khách hàng
-      mapPickup = driverPos;
-      mapDestination = customerPickup;
+      // Giai đoạn 1: Đã nhận cuốc -> Tuyến đường dẫn từ VỊ TRÍ TÀI XẾ -> ĐIỂM ĐÓN KHÁCH (A)
+      routeFrom = driverPos;
+      routeTo = customerPickup;
       navigationBanner = `DẪN ĐƯỜNG TỚI ĐIỂM ĐÓN KHÁCH (A): ${trip.pickup}`;
     } else if (trip.status === "PickedUp") {
-      // Giai đoạn 2: Đã đón khách -> Dẫn đường từ vị trí hiện tại/điểm đón đến điểm đến khách đã đặt
-      mapPickup = driverPos;
-      mapDestination = customerDest;
+      // Giai đoạn 2: Đã đón khách -> Tuyến đường dẫn từ VỊ TRÍ TÀI XẾ -> ĐIỂM ĐẾN CỦA KHÁCH (B)
+      routeFrom = driverPos;
+      routeTo = customerDest;
       navigationBanner = `DẪN ĐƯỜNG TỚI ĐIỂM TRẢ KHÁCH (B): ${trip.destination}`;
     } else {
-      // Giai đoạn xem trước (Requested, DriverOffered, DroppedOff, Paid): Hiển thị lộ trình khách đặt
-      mapPickup = customerPickup;
-      mapDestination = customerDest;
+      // Giai đoạn xem trước (Requested, DriverOffered...): Tuyến đường nối từ khách đón -> khách đến
+      routeFrom = customerPickup;
+      routeTo = customerDest;
     }
   } else if (myOffers && myOffers.length > 0 && myOffers[0].pickupLat && myOffers[0].pickupLng) {
-    // Đề xuất mới: Dẫn đường xem trước tới điểm đón khách
-    mapPickup = driverPos;
-    mapDestination = { lat: myOffers[0].pickupLat, lng: myOffers[0].pickupLng };
+    // Có cuốc xe mới đề xuất: Hiển thị điểm đón khách và tuyến đường từ tài xế tới khách
+    mapPickup = { lat: myOffers[0].pickupLat, lng: myOffers[0].pickupLng };
+    mapDestination = { lat: myOffers[0].destinationLat, lng: myOffers[0].destinationLng };
+    routeFrom = driverPos;
+    routeTo = mapPickup;
     navigationBanner = `ĐỀ XUẤT CUỐC MỚI: Đón khách tại ${myOffers[0].pickup}`;
   }
 
@@ -461,6 +469,8 @@ export default function DriverPage() {
           driverLocation={driverPos}
           pickup={mapPickup}
           destination={mapDestination}
+          routeFrom={routeFrom}
+          routeTo={routeTo}
           center={driverPos}
         />
       </div>
