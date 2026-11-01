@@ -40,9 +40,10 @@ const config: Config = {
         "pixel-active": "1px 1px 0px 0px #0F172A",
       },
       fontFamily: {
-        pixel: ["'Press Start 2P'", "monospace", "system-ui"],
-        sans: ["var(--font-geist-sans)", "system-ui", "sans-serif"],
-        mono: ["var(--font-geist-mono)", "monospace"],
+        sans: ["var(--font-sans)", "system-ui", "-apple-system", "sans-serif"],
+        heading: ["var(--font-heading)", "sans-serif"],
+        mono: ["var(--font-heading)", "monospace"],
+        pixel: ["var(--font-heading)", "monospace"],
       },
       borderWidth: {
         pixel: "2px",

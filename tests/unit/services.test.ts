@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { tripService } from "@/services/trip.service";
 import { matchingService } from "@/services/matching.service";
 import { paymentService } from "@/services/payment.service";
+import { routingService } from "@/services/routing.service";
 import { apiClient } from "@/lib/api-client";
 
 describe("Services API Layer tests", () => {
@@ -50,5 +51,39 @@ describe("Services API Layer tests", () => {
       { tripId: "trip-1", paymentToken: "tok_visa" },
       { headers: { "Idempotency-Key": "custom-key-123" } }
     );
+  });
+
+  it("routingService.getRoute returns turn-by-turn road coordinates", async () => {
+    // Mock global fetch
+    const mockOsrmResponse = {
+      code: "Ok",
+      routes: [
+        {
+          distance: 7450,
+          duration: 550,
+          geometry: {
+            coordinates: [
+              [106.698, 10.772],
+              [106.705, 10.765],
+              [106.719, 10.729],
+            ],
+          },
+        },
+      ],
+    };
+
+    const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValueOnce({
+      ok: true,
+      json: async () => mockOsrmResponse,
+    } as any);
+
+    const route = await routingService.getRoute({ lat: 10.772, lng: 106.698 }, { lat: 10.729, lng: 106.719 });
+    expect(route).not.toBeNull();
+    // Tọa độ phải được đổi thứ tự [lat, lng] cho Leaflet
+    expect(route?.coordinates[0]).toEqual([10.772, 106.698]);
+    expect(route?.coordinates[2]).toEqual([10.729, 106.719]);
+    expect(route?.distanceMeters).toBe(7450);
+
+    fetchSpy.mockRestore();
   });
 });
