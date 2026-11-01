@@ -1,0 +1,108 @@
+@import "leaflet/dist/leaflet.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 210 40% 98%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    --primary: 38 92% 50%;
+    --primary-foreground: 222 47% 11%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 38 92% 50%;
+    --accent-foreground: 222 47% 11%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 222 47% 11%;
+    --input: 222 47% 11%;
+    --ring: 38 92% 50%;
+    --radius: 0.25rem;
+  }
+}
+
+/* ==========================================================================
+   Retro Pixel Art HUD & Tactical Styling Tokens
+   ========================================================================== */
+
+/* Viền cứng & bóng xúc giác (Tactile pixel shadow) */
+.pixel-card {
+  background-color: #ffffff;
+  border: 2px solid #0f172a;
+  box-shadow: 3px 3px 0px 0px #0f172a;
+  transition: all 0.15s ease-in-out;
+}
+
+.pixel-card:hover {
+  box-shadow: 4px 4px 0px 0px #0f172a;
+}
+
+.pixel-card-active {
+  background-color: #ffffff;
+  border: 2px solid #0f172a;
+  box-shadow: 1px 1px 0px 0px #0f172a;
+  transform: translate(2px, 2px);
+}
+
+.pixel-btn-primary {
+  background-color: #f59e0b;
+  color: #0f172a;
+  font-weight: 700;
+  border: 2px solid #0f172a;
+  box-shadow: 3px 3px 0px 0px #0f172a;
+  transition: all 0.1s ease;
+}
+
+.pixel-btn-primary:hover:not(:disabled) {
+  background-color: #fbbf24;
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0px 0px #0f172a;
+}
+
+.pixel-btn-primary:active:not(:disabled) {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0px 0px #0f172a;
+}
+
+.pixel-btn-secondary {
+  background-color: #ffffff;
+  color: #0f172a;
+  font-weight: 600;
+  border: 2px solid #0f172a;
+  box-shadow: 3px 3px 0px 0px #0f172a;
+  transition: all 0.1s ease;
+}
+
+.pixel-btn-secondary:hover:not(:disabled) {
+  background-color: #f1f5f9;
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0px 0px #0f172a;
+}
+
+.pixel-btn-secondary:active:not(:disabled) {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0px 0px #0f172a;
+}
+
+/* Nét đứt Arcade Grid */
+.pixel-grid-bg {
+  background-size: 24px 24px;
+  background-image: linear-gradient(to right, rgba(15, 23, 42, 0.05) 1px, transparent 1px),
+                    linear-gradient(to bottom, rgba(15, 23, 42, 0.05) 1px, transparent 1px);
+}
+
+/* Leaflet map fix */
+.leaflet-container {
+  width: 100%;
+  height: 100%;
+  z-index: 10;
+  font-family: inherit;
+}
