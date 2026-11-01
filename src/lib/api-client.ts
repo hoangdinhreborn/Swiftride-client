@@ -21,8 +21,17 @@ class ApiClient {
     const normalizedPath = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
     const url = `${this.baseUrl}${normalizedPath}`;
 
-    // 1. Tự động gắn Token từ Auth Store nếu có
-    const token = useAuthStore.getState().token;
+    // 1. Tự động gắn Token: ưu tiên token của vai trò tương ứng với trang hiện tại
+    let token = useAuthStore.getState().token;
+    if (typeof window !== "undefined") {
+      const path = window.location.pathname;
+      if (path.startsWith("/driver")) {
+        token = localStorage.getItem("swiftride_driver_token") || token;
+      } else if (path.startsWith("/rider")) {
+        token = localStorage.getItem("swiftride_rider_token") || token;
+      }
+    }
+
     const authHeaders: Record<string, string> = {};
     if (token) {
       authHeaders["Authorization"] = `Bearer ${token}`;

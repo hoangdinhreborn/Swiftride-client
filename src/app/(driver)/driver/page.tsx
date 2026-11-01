@@ -220,11 +220,11 @@ export default function DriverPage() {
         </div>
 
         {/* Thông báo cuốc xe đang được đề xuất cho bạn (Incoming Offer) */}
-        {myOffers && myOffers.length > 0 && (
-          <div className="rounded-lg border-2 border-dashed border-taxi bg-amber-50 p-4 space-y-3 animate-pulse">
+        {myOffers && myOffers.length > 0 ? (
+          <div className="rounded-lg border-2 border-dashed border-taxi bg-amber-50 p-4 space-y-3 shadow-pixel">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5 text-xs font-bold text-amber-900">
-                <BellRing className="h-4 w-4 text-taxi" />
+                <BellRing className="h-4 w-4 text-taxi animate-bounce" />
                 <span>CÓ CUỐC XE MỚI ĐƯỢC ĐỀ XUẤT CHO BẠN!</span>
               </div>
               <span className="font-mono text-sm font-black text-pixel-border">
@@ -249,13 +249,63 @@ export default function DriverPage() {
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={() => setActiveTripId(myOffers[0].id)}
-              className="w-full pixel-btn-primary rounded py-2 text-xs font-bold text-center"
-            >
-              Xem lộ trình & Nhận cuốc
-            </button>
+            <div className="grid grid-cols-2 gap-2 pt-1">
+              <button
+                type="button"
+                disabled={isProcessing}
+                onClick={() => {
+                  setActiveTripId(myOffers[0].id);
+                  tripService
+                    .acceptTrip(myOffers[0].id)
+                    .then((updated) => {
+                      toast.success("Đã nhận cuốc xe thành công!", {
+                        description: `Bản đồ đang dẫn đường tới điểm đón: ${updated.pickup}`,
+                      });
+                    })
+                    .catch((err) => {
+                      toast.error("Không thể nhận cuốc", { description: getErrorMessage(err) });
+                    });
+                }}
+                className="pixel-btn-primary rounded py-2.5 text-xs font-bold flex items-center justify-center gap-1.5"
+              >
+                <Car className="h-4 w-4" />
+                <span>CHẤP NHẬN NGAY</span>
+              </button>
+
+              <button
+                type="button"
+                disabled={isProcessing}
+                onClick={() => {
+                  tripService
+                    .declineTrip(myOffers[0].id)
+                    .then(() => {
+                      toast.info("Đã từ chối cuốc xe.");
+                      setActiveTripId("");
+                    })
+                    .catch((err) => {
+                      toast.error("Lỗi khi từ chối", { description: getErrorMessage(err) });
+                    });
+                }}
+                className="pixel-btn-secondary rounded py-2.5 text-xs font-bold text-red-600 hover:bg-red-50 flex items-center justify-center gap-1.5"
+              >
+                <X className="h-4 w-4" />
+                <span>TỪ CHỐI</span>
+              </button>
+            </div>
+          </div>
+        ) : (
+          /* Radar thông báo trạng thái sẵn sàng nhận cuốc */
+          <div className="rounded-lg border-2 border-dashed border-emerald-400 bg-emerald-50 p-4 space-y-2 text-xs">
+            <div className="flex items-center gap-2 text-emerald-900 font-bold">
+              <span className="relative flex h-3 w-3">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-600"></span>
+              </span>
+              <span>RADAR NHẬN CUỐC ĐANG HOẠT ĐỘNG</span>
+            </div>
+            <p className="text-[11px] text-emerald-800 leading-relaxed">
+              Vị trí của bạn đang được phát sóng lên MatchingService mỗi 5 giây tại Chợ Bến Thành. Khi khách hàng bấm đặt xe và xác nhận giá cước, cuốc xe sẽ tự động nhảy vào đây kèm nút nhận cuốc!
+            </p>
           </div>
         )}
 

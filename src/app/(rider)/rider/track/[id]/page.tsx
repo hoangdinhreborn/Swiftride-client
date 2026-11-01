@@ -155,15 +155,15 @@ export default function TripTrackPage({ params }: { params: Promise<{ id: string
 
           {/* Action khi chuyến đi đang chờ xác nhận giá (Requested) */}
           {trip.status === "Requested" && (
-            <div className="rounded-lg border-2 border-dashed border-taxi bg-amber-50 p-4 space-y-2.5">
-              <div className="flex items-center gap-2 text-amber-900 font-bold text-xs">
-                <Zap className="h-4 w-4 text-taxi fill-taxi" />
-                <span>Báo giá ước tính: {formatVND(trip.quotedFare)}</span>
+            <div className="rounded-lg border-2 border-dashed border-taxi bg-amber-50 p-4 space-y-3 shadow-pixel">
+              <div className="flex items-center gap-2 text-amber-900 font-bold text-sm">
+                <Zap className="h-5 w-5 text-taxi fill-taxi animate-bounce" />
+                <span>BƯỚC 1: XÁC NHẬN GIÁ CƯỚC ĐỂ ĐIỀU PHỐI XE</span>
               </div>
-              <p className="text-[11px] text-amber-800 leading-relaxed">
-                Bạn có đồng ý với mức giá cước này để hệ thống tiến hành điều phối tài xế gần nhất không?
+              <p className="text-xs text-amber-900 leading-relaxed font-semibold">
+                Cước phí ước tính là <strong>{formatVND(trip.quotedFare)}</strong>. Vui lòng bấm &ldquo;Đồng ý giá &amp; Tìm xe&rdquo; bên dưới để hệ thống quét và gửi cuốc xe tới tài xế gần nhất!
               </p>
-              <div className="flex items-center gap-2 pt-1">
+              <div className="flex items-center gap-3 pt-1">
                 <button
                   type="button"
                   disabled={confirm.isPending || cancel.isPending}
@@ -173,9 +173,10 @@ export default function TripTrackPage({ params }: { params: Promise<{ id: string
                       onError: (err) => toast.error("Lỗi xác nhận", { description: getErrorMessage(err) }),
                     })
                   }
-                  className="pixel-btn-primary rounded-md px-4 py-2 text-xs font-bold flex items-center gap-1.5 disabled:opacity-50"
+                  className="pixel-btn-primary rounded-md px-5 py-2.5 text-xs font-bold flex items-center gap-2 shadow-pixel-sm disabled:opacity-50"
                 >
-                  <span>Đồng ý giá & Tìm xe</span>
+                  <Car className="h-4 w-4" />
+                  <span>{confirm.isPending ? "Đang điều phối..." : "ĐỒNG Ý GIÁ & TÌM XE"}</span>
                 </button>
                 <button
                   type="button"
@@ -186,9 +187,9 @@ export default function TripTrackPage({ params }: { params: Promise<{ id: string
                       onError: (err) => toast.error("Lỗi hủy chuyến", { description: getErrorMessage(err) }),
                     })
                   }
-                  className="pixel-btn-secondary rounded-md px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-50 disabled:opacity-50"
+                  className="pixel-btn-secondary rounded-md px-4 py-2.5 text-xs font-bold text-red-600 hover:bg-red-50 disabled:opacity-50"
                 >
-                  <span>Hủy</span>
+                  <span>Hủy chuyến</span>
                 </button>
               </div>
             </div>

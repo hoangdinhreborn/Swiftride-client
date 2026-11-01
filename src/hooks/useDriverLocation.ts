@@ -5,38 +5,53 @@ import { useGeolocation } from "react-haiku";
 import { matchingService } from "@/services/matching.service";
 import type { LatLng } from "@/lib/map/haversine";
 
-const DEFAULT_COORDS: LatLng = { lat: 10.7725, lng: 106.699 }; // Bến Thành mặc định
+const DEFAULT_COORDS: LatLng = { lat: 10.7725, lng: 106.699 }; // Bến Thành mặc định (cách Rider 100m)
 
 export function useDriverLocation(initialOnline = true) {
   const [isOnline, setIsOnline] = useState<boolean>(initialOnline);
   const [driverPos, setDriverPos] = useState<LatLng>(DEFAULT_COORDS);
 
-  // Sử dụng hook useGeolocation chuẩn từ react-haiku (chế độ watch theo dõi liên tục)
+  // Hook useGeolocation từ react-haiku (theo dõi GPS khi có quyền)
   const { latitude, longitude, error: geoError, loading: isLocating } = useGeolocation({
     enableHighAccuracy: true,
     watch: isOnline,
     maximumAge: 5000,
   });
 
-  // Tự động cập nhật vị trí và đồng bộ lên MongoDB qua Gateway khi có tọa độ mới từ useGeolocation
+  // Tọa độ hiệu lực: ưu tiên GPS thực tế, nếu desktop/không có GPS thì dùng driverPos
+  const effectiveLat = typeof latitude === "number" ? latitude : driverPos.lat;
+  const effectiveLng = typeof longitude === "number" ? longitude : driverPos.lng;
+
+  // Cập nhật driverPos khi nhận được tọa độ GPS mới
+  useEffect(() => {
+    if (typeof latitude === "number" && typeof longitude === "number") {
+      setDriverPos({ lat: latitude, lng: longitude });
+    }
+  }, [latitude, longitude]);
+
+  // Luôn gửi vị trí & Heartbeat lên MongoDB mỗi 5 giây khi Online để Backend luôn thấy tài xế khả dụng
   useEffect(() => {
     if (!isOnline) return;
 
-    if (typeof latitude === "number" && typeof longitude === "number") {
-      const coords = { lat: latitude, lng: longitude };
-      setDriverPos(coords);
-
+    const syncLocation = () => {
       matchingService
         .updateLocation({
-          lat: coords.lat,
-          lng: coords.lng,
+          lat: effectiveLat,
+          lng: effectiveLng,
           isAvailable: true,
         })
         .catch(() => {
-          // im lặng retry ở lần cập nhật tiếp theo
+          // im lặng retry ở lần gửi heartbeat tiếp theo
         });
-    }
-  }, [latitude, longitude, isOnline]);
+    };
+
+    // Gửi ngay lập tức khi mount / khi chuyển Online
+    syncLocation();
+
+    // Gửi định kỳ mỗi 5 giây (Heartbeat để MongoDB UpdatedAt luôn < 5 phút)
+    const timerId = setInterval(syncLocation, 5000);
+    return () => clearInterval(timerId);
+  }, [isOnline, effectiveLat, effectiveLng]);
 
   const toggleOnline = async () => {
     const nextState = !isOnline;
@@ -49,11 +64,22 @@ export function useDriverLocation(initialOnline = true) {
     return nextState;
   };
 
+  const updatePositionManually = async (newPos: LatLng) => {
+    setDriverPos(newPos);
+    if (isOnline) {
+      await matchingService.updateLocation({
+        lat: newPos.lat,
+        lng: newPos.lng,
+        isAvailable: true,
+      });
+    }
+  };
+
   return {
     isOnline,
     toggleOnline,
     driverPos,
-    setDriverPos,
+    setDriverPos: updatePositionManually,
     isLocating,
     gpsError: geoError?.message || null,
   };

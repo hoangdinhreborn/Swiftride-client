@@ -76,17 +76,23 @@ const driverIcon = createDivIcon(
   [36, 36]
 );
 
-// Marker Tài xế lân cận (Lucide Navigation vector)
+// Marker Tài xế lân cận (Lucide Car vector màu vàng rực rỡ + hiệu ứng Radar Pulse nổi bật)
 const nearbyDriverIcon = createDivIcon(
   `
-  <div style="background-color: #FEF08A; border: 2px solid #0F172A; width: 28px; height: 28px; border-radius: 4px; box-shadow: 2px 2px 0px #0F172A; display: flex; align-items: center; justify-content: center;">
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="#0F172A" stroke="#0F172A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <polygon points="3 11 22 2 13 21 11 13 3 11"/>
-    </svg>
+  <div style="position: relative; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;">
+    <div style="position: absolute; width: 36px; height: 36px; background-color: #F59E0B; opacity: 0.4; border-radius: 9999px; animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
+    <div style="position: relative; background-color: #FEF08A; border: 2px solid #0F172A; width: 32px; height: 32px; border-radius: 6px; box-shadow: 2px 2px 0px #0F172A; display: flex; align-items: center; justify-content: center;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0F172A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/>
+        <circle cx="7" cy="17" r="2"/>
+        <path d="M9 17h6"/>
+        <circle cx="17" cy="17" r="2"/>
+      </svg>
+    </div>
   </div>
 `,
   "nearby-driver",
-  [28, 28]
+  [36, 36]
 );
 
 interface LeafletMapProps {

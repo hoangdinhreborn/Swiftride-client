@@ -20,11 +20,10 @@ function DirectLoginContent() {
 
   const { user, isAuthenticated, login, isLoading } = useAuth();
 
-  // Nếu người dùng đã đăng nhập, tự động chuyển vào dashboard tương ứng
+  // Chỉ tự động chuyển nếu có redirectPath cụ thể do middleware yêu cầu
   useEffect(() => {
-    if (!isLoading && isAuthenticated && user) {
-      const target = redirectPath || (user.role === "Driver" ? "/driver" : "/rider");
-      router.replace(target);
+    if (!isLoading && isAuthenticated && user && redirectPath) {
+      router.replace(redirectPath);
     }
   }, [isLoading, isAuthenticated, user, redirectPath, router]);
 

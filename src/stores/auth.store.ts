@@ -33,10 +33,14 @@ export const useAuthStore = create<AuthStore>((set) => ({
       name: `${decoded.role} #${decoded.sub.substring(0, 6)}`,
     };
 
-    // Lưu vào localStorage & Cookie cho middleware
+    // Lưu vào localStorage & Cookie riêng cho từng vai trò để hỗ trợ mở song song 2 tab Rider và Driver
     if (typeof window !== "undefined") {
+      const roleKey = decoded.role.toLowerCase();
       localStorage.setItem(STORAGE_KEY, cleanToken);
+      localStorage.setItem(`swiftride_${roleKey}_token`, cleanToken);
+
       document.cookie = `swiftride_token=${cleanToken}; Path=/; SameSite=Lax; Max-Age=7200;`;
+      document.cookie = `swiftride_${roleKey}_token=${cleanToken}; Path=/; SameSite=Lax; Max-Age=7200;`;
       document.cookie = `swiftride_role=${decoded.role}; Path=/; SameSite=Lax; Max-Age=7200;`;
     }
 
@@ -47,7 +51,11 @@ export const useAuthStore = create<AuthStore>((set) => ({
   logout: () => {
     if (typeof window !== "undefined") {
       localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem("swiftride_rider_token");
+      localStorage.removeItem("swiftride_driver_token");
       document.cookie = "swiftride_token=; Path=/; Max-Age=0;";
+      document.cookie = "swiftride_rider_token=; Path=/; Max-Age=0;";
+      document.cookie = "swiftride_driver_token=; Path=/; Max-Age=0;";
       document.cookie = "swiftride_role=; Path=/; Max-Age=0;";
     }
     set({ user: null, token: null, isLoading: false });
@@ -56,7 +64,14 @@ export const useAuthStore = create<AuthStore>((set) => ({
   hydrate: () => {
     if (typeof window === "undefined") return;
 
-    const token = localStorage.getItem(STORAGE_KEY);
+    let token = localStorage.getItem(STORAGE_KEY);
+    const path = window.location.pathname;
+    if (path.startsWith("/driver")) {
+      token = localStorage.getItem("swiftride_driver_token") || token;
+    } else if (path.startsWith("/rider")) {
+      token = localStorage.getItem("swiftride_rider_token") || token;
+    }
+
     if (!token) {
       set({ user: null, token: null, isLoading: false });
       return;
