@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useDebounce } from "react-haiku";
+import { useDebounce, useGeolocation } from "react-haiku";
 import { Navigation2, Compass, Tag, RefreshCw, Search, MapPin, Flag } from "lucide-react";
 import { PRESET_LOCATIONS, type LatLng } from "@/lib/map/haversine";
 import { goongService, type PlacePrediction } from "@/services/goong.service";
@@ -45,6 +45,18 @@ export function BookingForm({
   isLoadingQuote,
 }: Props) {
   const [isGettingLocation, setIsGettingLocation] = useState(false);
+
+  // Hook định vị GPS từ react-haiku
+  const {
+    latitude: geoLat,
+    longitude: geoLng,
+    error: geoError,
+    loading: isLocating,
+  } = useGeolocation({
+    enableHighAccuracy: true,
+    watch: false,
+    timeout: 8000,
+  });
 
   // 1. Dùng useDebounce từ react-haiku để debounce input tìm kiếm địa chỉ
   const debouncedPickupQuery = useDebounce(pickupName, 350);
@@ -104,6 +116,18 @@ export function BookingForm({
   };
 
   const handleGetCurrentLocation = () => {
+    if (typeof geoLat === "number" && typeof geoLng === "number") {
+      setPickupPos({ lat: geoLat, lng: geoLng });
+      setPickupName("Vị trí GPS của bạn");
+      toast.success("Đã định vị thành công từ react-haiku useGeolocation!");
+      return;
+    }
+
+    if (geoError) {
+      toast.error("Không thể lấy vị trí GPS", { description: geoError.message });
+      return;
+    }
+
     if (!navigator.geolocation) {
       toast.error("Trình duyệt không hỗ trợ Geolocation API");
       return;

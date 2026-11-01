@@ -1,44 +1,42 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useGeolocation } from "react-haiku";
 import { matchingService } from "@/services/matching.service";
 import type { LatLng } from "@/lib/map/haversine";
 
-const DEFAULT_COORDS: LatLng = { lat: 10.7725, lng: 106.699 }; // Bến Thành
+const DEFAULT_COORDS: LatLng = { lat: 10.7725, lng: 106.699 }; // Bến Thành mặc định
 
 export function useDriverLocation(initialOnline = true) {
   const [isOnline, setIsOnline] = useState<boolean>(initialOnline);
   const [driverPos, setDriverPos] = useState<LatLng>(DEFAULT_COORDS);
-  const [gpsError, setGpsError] = useState<string | null>(null);
 
-  // Theo dõi GPS và đồng bộ vị trí lên MongoDB qua Gateway
+  // Sử dụng hook useGeolocation chuẩn từ react-haiku (chế độ watch theo dõi liên tục)
+  const { latitude, longitude, error: geoError, loading: isLocating } = useGeolocation({
+    enableHighAccuracy: true,
+    watch: isOnline,
+    maximumAge: 5000,
+  });
+
+  // Tự động cập nhật vị trí và đồng bộ lên MongoDB qua Gateway khi có tọa độ mới từ useGeolocation
   useEffect(() => {
-    if (!isOnline || typeof window === "undefined" || !navigator.geolocation) return;
+    if (!isOnline) return;
 
-    const watchId = navigator.geolocation.watchPosition(
-      (pos) => {
-        const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        setDriverPos(coords);
-        setGpsError(null);
+    if (typeof latitude === "number" && typeof longitude === "number") {
+      const coords = { lat: latitude, lng: longitude };
+      setDriverPos(coords);
 
-        matchingService
-          .updateLocation({
-            lat: coords.lat,
-            lng: coords.lng,
-            isAvailable: true,
-          })
-          .catch(() => {
-            // im lặng retry ở lần cập nhật tiếp theo
-          });
-      },
-      (err) => {
-        setGpsError(err.message);
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 }
-    );
-
-    return () => navigator.geolocation.clearWatch(watchId);
-  }, [isOnline]);
+      matchingService
+        .updateLocation({
+          lat: coords.lat,
+          lng: coords.lng,
+          isAvailable: true,
+        })
+        .catch(() => {
+          // im lặng retry ở lần cập nhật tiếp theo
+        });
+    }
+  }, [latitude, longitude, isOnline]);
 
   const toggleOnline = async () => {
     const nextState = !isOnline;
@@ -56,6 +54,7 @@ export function useDriverLocation(initialOnline = true) {
     toggleOnline,
     driverPos,
     setDriverPos,
-    gpsError,
+    isLocating,
+    gpsError: geoError?.message || null,
   };
 }
