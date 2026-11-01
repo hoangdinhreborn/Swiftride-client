@@ -6,9 +6,28 @@ import L from "leaflet";
 import type { LatLng } from "@/lib/map/haversine";
 import type { NearbyDriverDto } from "@/types";
 import { routingService } from "@/services/routing.service";
-import { MapPin, Flag, Navigation, Map as MapIcon } from "lucide-react";
+import { MapPin, Flag, Navigation, Map as MapIcon, Layers } from "lucide-react";
 
 const GOONG_MAP_KEY = process.env.NEXT_PUBLIC_GOONG_MAP_KEY;
+
+// Các theme bản đồ chất lượng cao không yêu cầu API key (Zero-Config)
+const MAP_THEMES = {
+  esri: {
+    name: "Đường phố (ESRI)",
+    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
+    attribution: "&copy; Esri &copy; OpenStreetMap contributors",
+  },
+  hot: {
+    name: "Giao thông (HOT)",
+    url: "https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png",
+    attribution: "&copy; OpenStreetMap contributors, Tiles style by Humanitarian OSM Team",
+  },
+  goong: {
+    name: "Goong.io",
+    url: `https://tiles.goong.io/assets/goong_light/{z}/{x}/{y}.png?api_key=${GOONG_MAP_KEY}`,
+    attribution: "&copy; Goong.io Maps",
+  },
+};
 
 // Custom SVG Icons sử dụng biểu tượng vector Lucide phẳng, cao cấp
 function createDivIcon(svgHtml: string, className = "", size: [number, number] = [32, 32]) {
@@ -145,6 +164,12 @@ export default function LeafletInnerMap({
   const [roadCoordinates, setRoadCoordinates] = useState<[number, number][]>([]);
   const [routeStats, setRouteStats] = useState<{ distanceKm: number; durationMin: number } | null>(null);
 
+  // Mặc định: Nếu có key Goong thì dùng Goong, nếu không thì dùng ESRI Street Map (hoàn toàn miễn phí, siêu nét)
+  const [selectedTheme, setSelectedTheme] = useState<"esri" | "hot" | "goong">(
+    GOONG_MAP_KEY ? "goong" : "esri"
+  );
+  const [showThemeMenu, setShowThemeMenu] = useState(false);
+
   // Xác định điểm bắt đầu và điểm kết thúc của tuyến đường OSRM
   const fromPoint = routeFrom || pickup;
   const toPoint = routeTo || destination;
@@ -176,21 +201,70 @@ export default function LeafletInnerMap({
     };
   }, [fromPoint?.lat, fromPoint?.lng, toPoint?.lat, toPoint?.lng]);
 
-  // Nền bản đồ: Ưu tiên Goong nếu có key, mặc định CARTO Voyager siêu đẹp, sắc nét
-  const tileUrl = GOONG_MAP_KEY
-    ? `https://tiles.goong.io/assets/goong_light/{z}/{x}/{y}.png?api_key=${GOONG_MAP_KEY}`
-    : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
-
-  const attribution = GOONG_MAP_KEY
-    ? '&copy; <a href="https://goong.io/">Goong.io</a> Maps'
-    : '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+  const activeTheme = MAP_THEMES[selectedTheme];
 
   return (
     <div className="relative h-full w-full overflow-hidden border-2 border-pixel-border">
-      {/* Provider badge */}
-      <div className="absolute top-3 right-3 z-[1000] rounded border-2 border-pixel-border bg-white/95 px-2.5 py-1 text-[11px] font-mono font-bold shadow-pixel-sm flex items-center gap-1.5">
-        <MapIcon className="h-3.5 w-3.5 text-blue-600" />
-        <span>{GOONG_MAP_KEY ? "Bản đồ Goong.io" : "Bản đồ CARTO Voyager + OSRM"}</span>
+      {/* Provider badge & Style Switcher */}
+      <div className="absolute top-3 right-3 z-[1000] flex items-center gap-1">
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setShowThemeMenu(!showThemeMenu)}
+            className="rounded border-2 border-pixel-border bg-white px-2.5 py-1 text-[11px] font-mono font-bold shadow-pixel-sm flex items-center gap-1.5 hover:bg-slate-50"
+          >
+            <Layers className="h-3.5 w-3.5 text-blue-600" />
+            <span>{activeTheme.name}</span>
+          </button>
+
+          {showThemeMenu && (
+            <div className="absolute right-0 mt-1 w-44 rounded border-2 border-pixel-border bg-white p-1 shadow-pixel z-[1100] text-xs font-mono">
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedTheme("esri");
+                  setShowThemeMenu(false);
+                }}
+                className={`w-full text-left px-2.5 py-1.5 rounded flex items-center justify-between ${
+                  selectedTheme === "esri" ? "bg-taxi font-bold" : "hover:bg-slate-100"
+                }`}
+              >
+                <span>Đường phố (ESRI)</span>
+                <span className="text-[9px] opacity-70">Miễn phí</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedTheme("hot");
+                  setShowThemeMenu(false);
+                }}
+                className={`w-full text-left px-2.5 py-1.5 rounded flex items-center justify-between ${
+                  selectedTheme === "hot" ? "bg-taxi font-bold" : "hover:bg-slate-100"
+                }`}
+              >
+                <span>Giao thông (HOT)</span>
+                <span className="text-[9px] opacity-70">Miễn phí</span>
+              </button>
+
+              {GOONG_MAP_KEY && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedTheme("goong");
+                    setShowThemeMenu(false);
+                  }}
+                  className={`w-full text-left px-2.5 py-1.5 rounded flex items-center justify-between ${
+                    selectedTheme === "goong" ? "bg-taxi font-bold" : "hover:bg-slate-100"
+                  }`}
+                >
+                  <span>Goong.io Tiles</span>
+                  <span className="text-[9px] opacity-70">Key</span>
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Thông tin lộ trình thực tế OSRM */}
@@ -224,7 +298,12 @@ export default function LeafletInnerMap({
         scrollWheelZoom={true}
         className="h-full w-full"
       >
-        <TileLayer attribution={attribution} url={tileUrl} />
+        <TileLayer
+          key={selectedTheme}
+          attribution={activeTheme.attribution}
+          url={activeTheme.url}
+          maxZoom={19}
+        />
 
         <MapEventsHandler onSelect={onSelectLocation} />
         <MapBoundsUpdater
