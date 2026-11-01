@@ -6,10 +6,11 @@ import L from "leaflet";
 import type { LatLng } from "@/lib/map/haversine";
 import type { NearbyDriverDto } from "@/types";
 import { routingService } from "@/services/routing.service";
+import { MapPin, Flag, Navigation, Map as MapIcon } from "lucide-react";
 
 const GOONG_MAP_KEY = process.env.NEXT_PUBLIC_GOONG_MAP_KEY;
 
-// Custom SVG Icons
+// Custom SVG Icons sử dụng biểu tượng vector Lucide (không dùng emoji)
 function createDivIcon(svgHtml: string, className = "", size: [number, number] = [32, 32]) {
   return L.divIcon({
     html: svgHtml,
@@ -20,36 +21,53 @@ function createDivIcon(svgHtml: string, className = "", size: [number, number] =
   });
 }
 
+// Marker Điểm đón (Lucide MapPin vector)
 const pickupIcon = createDivIcon(`
-  <div style="background-color: #10B981; border: 2px solid #0F172A; width: 30px; height: 30px; border-radius: 6px; box-shadow: 2px 2px 0px #0F172A; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 14px;">
-    A
+  <div style="background-color: #10B981; border: 2px solid #0F172A; width: 32px; height: 32px; border-radius: 6px; box-shadow: 2px 2px 0px #0F172A; display: flex; align-items: center; justify-content: center;">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/>
+      <circle cx="12" cy="10" r="3"/>
+    </svg>
   </div>
 `);
 
+// Marker Điểm đến (Lucide Flag vector)
 const destinationIcon = createDivIcon(`
-  <div style="background-color: #EF4444; border: 2px solid #0F172A; width: 30px; height: 30px; border-radius: 6px; box-shadow: 2px 2px 0px #0F172A; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 14px;">
-    B
+  <div style="background-color: #EF4444; border: 2px solid #0F172A; width: 32px; height: 32px; border-radius: 6px; box-shadow: 2px 2px 0px #0F172A; display: flex; align-items: center; justify-content: center;">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/>
+      <line x1="4" x2="4" y1="22" y2="15"/>
+    </svg>
   </div>
 `);
 
+// Marker Xe tài xế chính (Lucide Car vector)
 const driverIcon = createDivIcon(
   `
-  <div style="background-color: #F59E0B; border: 2px solid #0F172A; width: 34px; height: 34px; border-radius: 6px; box-shadow: 3px 3px 0px #0F172A; display: flex; align-items: center; justify-content: center; font-size: 18px;">
-    🚕
+  <div style="background-color: #F59E0B; border: 2px solid #0F172A; width: 36px; height: 36px; border-radius: 6px; box-shadow: 3px 3px 0px #0F172A; display: flex; align-items: center; justify-content: center;">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F172A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/>
+      <circle cx="7" cy="17" r="2"/>
+      <path d="M9 17h6"/>
+      <circle cx="17" cy="17" r="2"/>
+    </svg>
   </div>
 `,
   "driver-cab",
-  [34, 34]
+  [36, 36]
 );
 
+// Marker Tài xế lân cận (Lucide Navigation vector)
 const nearbyDriverIcon = createDivIcon(
   `
-  <div style="background-color: #FEF08A; border: 2px solid #0F172A; width: 26px; height: 26px; border-radius: 4px; box-shadow: 2px 2px 0px #0F172A; display: flex; align-items: center; justify-content: center; font-size: 14px;">
-    🚗
+  <div style="background-color: #FEF08A; border: 2px solid #0F172A; width: 28px; height: 28px; border-radius: 4px; box-shadow: 2px 2px 0px #0F172A; display: flex; align-items: center; justify-content: center;">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="#0F172A" stroke="#0F172A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polygon points="3 11 22 2 13 21 11 13 3 11"/>
+    </svg>
   </div>
 `,
   "nearby-driver",
-  [26, 26]
+  [28, 28]
 );
 
 interface LeafletMapProps {
@@ -160,26 +178,33 @@ export default function LeafletInnerMap({
 
   return (
     <div className="relative h-full w-full overflow-hidden border-2 border-pixel-border">
-      {/* Provider badge */}
-      <div className="absolute top-3 right-3 z-[1000] rounded border-2 border-pixel-border bg-white/95 px-2.5 py-1 text-[11px] font-mono font-bold shadow-pixel-sm">
-        {GOONG_MAP_KEY ? "🗺️ Bản đồ Goong.io" : "🗺️ OpenStreetMap + OSRM"}
+      {/* Provider badge (Dùng Lucide Map icon) */}
+      <div className="absolute top-3 right-3 z-[1000] rounded border-2 border-pixel-border bg-white/95 px-2.5 py-1 text-[11px] font-mono font-bold shadow-pixel-sm flex items-center gap-1.5">
+        <MapIcon className="h-3.5 w-3.5 text-blue-600" />
+        <span>{GOONG_MAP_KEY ? "Bản đồ Goong.io" : "OpenStreetMap + OSRM"}</span>
       </div>
 
-      {/* Thông tin lộ trình thực tế OSRM */}
+      {/* Thông tin lộ trình thực tế OSRM (Dùng Lucide Navigation icon) */}
       {routeStats && (
         <div className="absolute bottom-4 left-4 z-[1000] rounded border-2 border-pixel-border bg-white px-3 py-1.5 shadow-pixel text-xs font-mono font-bold flex items-center gap-2">
-          <span className="flex h-2.5 w-2.5 rounded-full bg-blue-600 animate-pulse" />
+          <Navigation className="h-4 w-4 text-blue-600 fill-blue-600" />
           <span>Tuyến đường OSRM: {routeStats.distanceKm} km (~{routeStats.durationMin} phút lái xe)</span>
         </div>
       )}
 
-      {/* Banner chế độ chọn vị trí */}
+      {/* Banner chế độ chọn vị trí (Dùng Lucide MapPin & Flag) */}
       {selectionMode && (
-        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[1000] rounded border-2 border-pixel-border bg-white px-3 py-1.5 shadow-pixel text-xs font-bold font-mono">
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[1000] rounded border-2 border-pixel-border bg-white px-3 py-1.5 shadow-pixel text-xs font-bold font-mono flex items-center gap-1.5">
           {selectionMode === "pickup" ? (
-            <span className="text-emerald-700">📍 Bấm vào bản đồ để chọn ĐIỂM ĐÓN</span>
+            <>
+              <MapPin className="h-4 w-4 text-emerald-600" />
+              <span className="text-emerald-700">Click bản đồ để chọn ĐIỂM ĐÓN</span>
+            </>
           ) : (
-            <span className="text-rose-700">🎯 Bấm vào bản đồ để chọn ĐIỂM ĐẾN</span>
+            <>
+              <Flag className="h-4 w-4 text-rose-600" />
+              <span className="text-rose-700">Click bản đồ để chọn ĐIỂM ĐẾN</span>
+            </>
           )}
         </div>
       )}

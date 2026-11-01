@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useDebounce } from "react-haiku";
-import { Navigation2, Compass, Tag, RefreshCw, Search, MapPin } from "lucide-react";
+import { Navigation2, Compass, Tag, RefreshCw, Search, MapPin, Flag } from "lucide-react";
 import { PRESET_LOCATIONS, type LatLng } from "@/lib/map/haversine";
 import { goongService, type PlacePrediction } from "@/services/goong.service";
 import { toast } from "sonner";
@@ -173,13 +173,14 @@ export function BookingForm({
             <button
               type="button"
               onClick={() => setSelectionMode(selectionMode === "pickup" ? null : "pickup")}
-              className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
+              className={`text-[10px] font-bold px-2 py-1 rounded border inline-flex items-center gap-1 ${
                 selectionMode === "pickup"
                   ? "bg-emerald-600 text-white border-pixel-border"
                   : "bg-slate-100 text-slate-700 hover:bg-slate-200"
               }`}
             >
-              {selectionMode === "pickup" ? "Hủy chọn" : "Bản đồ 📍"}
+              <MapPin className="h-3 w-3" />
+              <span>{selectionMode === "pickup" ? "Hủy chọn" : "Bản đồ"}</span>
             </button>
           </div>
         </div>
@@ -236,13 +237,14 @@ export function BookingForm({
           <button
             type="button"
             onClick={() => setSelectionMode(selectionMode === "destination" ? null : "destination")}
-            className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
+            className={`text-[10px] font-bold px-2 py-1 rounded border inline-flex items-center gap-1 ${
               selectionMode === "destination"
                 ? "bg-rose-600 text-white border-pixel-border"
                 : "bg-slate-100 text-slate-700 hover:bg-slate-200"
             }`}
           >
-            {selectionMode === "destination" ? "Hủy chọn" : "Bản đồ 🎯"}
+            <Flag className="h-3 w-3" />
+            <span>{selectionMode === "destination" ? "Hủy chọn" : "Bản đồ"}</span>
           </button>
         </div>
 

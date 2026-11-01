@@ -17,6 +17,7 @@ import {
   Search,
   Copy,
   Check,
+  Sparkles,
 } from "lucide-react";
 
 export default function DriverPage() {
@@ -280,14 +281,16 @@ export default function DriverPage() {
               )}
 
               {trip.status === "DroppedOff" && (
-                <div className="rounded border border-amber-300 bg-amber-50 p-3 text-center text-xs text-amber-800 font-bold">
-                  ✓ Đã trả khách thành công! Đang chờ Rider thanh toán qua hệ thống Sổ cái.
+                <div className="rounded border border-amber-300 bg-amber-50 p-3 text-center text-xs text-amber-800 font-bold flex items-center justify-center gap-1.5">
+                  <CheckCircle className="h-4 w-4 text-amber-600" />
+                  <span>Đã trả khách thành công! Đang chờ Rider thanh toán qua hệ thống Sổ cái.</span>
                 </div>
               )}
 
               {trip.status === "Paid" && (
-                <div className="rounded border border-emerald-400 bg-emerald-50 p-3 text-center text-xs text-emerald-800 font-bold">
-                  ★ Chuyến đi đã thanh toán hoàn tất! Bạn có thể nhận cuốc xe tiếp theo.
+                <div className="rounded border border-emerald-400 bg-emerald-50 p-3 text-center text-xs text-emerald-800 font-bold flex items-center justify-center gap-1.5">
+                  <Sparkles className="h-4 w-4 text-emerald-600" />
+                  <span>Chuyến đi đã thanh toán hoàn tất! Bạn có thể nhận cuốc xe tiếp theo.</span>
                 </div>
               )}
             </div>

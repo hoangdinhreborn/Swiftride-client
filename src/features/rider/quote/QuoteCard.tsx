@@ -42,8 +42,9 @@ export function QuoteCard({ quote, isLoading, onConfirmBooking, isBooking }: Pro
 
         <div className="flex flex-col items-end gap-1">
           {isSurge ? (
-            <PixelBadge variant="red" className="animate-pulse">
-              ⚡ Surge {quote.surgeMultiplier}x
+            <PixelBadge variant="red" className="animate-pulse flex items-center">
+              <Zap className="h-3 w-3 fill-current mr-1" />
+              <span>Surge {quote.surgeMultiplier}x</span>
             </PixelBadge>
           ) : (
             <PixelBadge variant="green">Chuẩn 1.0x</PixelBadge>

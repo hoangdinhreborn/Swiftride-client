@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuote, useNearbyDrivers, useCreateTrip } from "@/hooks";
+import { goongService } from "@/services";
 import { DynamicMap } from "@/components/shared/map/DynamicMap";
 import { BookingForm } from "@/features/rider/booking/BookingForm";
 import { QuoteCard } from "@/features/rider/quote/QuoteCard";
@@ -49,16 +50,20 @@ export default function RiderPage() {
   // Hook 3: Mutation tạo chuyến đi
   const createTripMutation = useCreateTrip();
 
-  const handleSelectOnMap = (pos: LatLng) => {
+  const handleSelectOnMap = async (pos: LatLng) => {
     if (selectionMode === "pickup") {
       setPickupPos(pos);
-      setPickupName(`Điểm đón (${pos.lat.toFixed(4)}, ${pos.lng.toFixed(4)})`);
+      setPickupName("Đang xác định tên đường...");
       setSelectionMode(null);
+      const address = await goongService.reverseGeocode(pos);
+      setPickupName(address);
       toast.success("Đã chọn điểm đón trên bản đồ!");
     } else if (selectionMode === "destination") {
       setDestinationPos(pos);
-      setDestinationName(`Điểm đến (${pos.lat.toFixed(4)}, ${pos.lng.toFixed(4)})`);
+      setDestinationName("Đang xác định tên đường...");
       setSelectionMode(null);
+      const address = await goongService.reverseGeocode(pos);
+      setDestinationName(address);
       toast.success("Đã chọn điểm đến trên bản đồ!");
     }
   };

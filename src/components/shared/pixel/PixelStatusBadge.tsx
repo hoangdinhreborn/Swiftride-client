@@ -1,5 +1,6 @@
 import { PixelBadge } from "./PixelBadge";
 import type { TripStatus } from "@/types";
+import { Clock, Car, Navigation, CreditCard, CheckCircle2, XCircle, AlertCircle } from "lucide-react";
 
 interface Props {
   status: TripStatus | string;
@@ -11,43 +12,50 @@ export function PixelStatusBadge({ status, className }: Props) {
     case "Requested":
       return (
         <PixelBadge variant="yellow" className={className}>
-          ● Đang tìm tài xế
+          <Clock className="h-3 w-3 mr-1" />
+          <span>Đang tìm tài xế</span>
         </PixelBadge>
       );
     case "DriverAccepted":
       return (
         <PixelBadge variant="blue" className={className}>
-          ● Tài xế đang đến
+          <Car className="h-3 w-3 mr-1" />
+          <span>Tài xế đang đến</span>
         </PixelBadge>
       );
     case "PickedUp":
       return (
         <PixelBadge variant="green" className={className}>
-          ● Đang di chuyển
+          <Navigation className="h-3 w-3 mr-1" />
+          <span>Đang di chuyển</span>
         </PixelBadge>
       );
     case "DroppedOff":
       return (
         <PixelBadge variant="yellow" className={className}>
-          ● Đã trả khách / Chờ thanh toán
+          <CreditCard className="h-3 w-3 mr-1" />
+          <span>Chờ thanh toán</span>
         </PixelBadge>
       );
     case "Paid":
       return (
         <PixelBadge variant="green" className={className}>
-          ✓ ĐÃ HOÀN TẤT & THANH TOÁN
+          <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+          <span>ĐÃ HOÀN TẤT & THANH TOÁN</span>
         </PixelBadge>
       );
     case "Cancelled":
       return (
         <PixelBadge variant="outline" className={className}>
-          ✕ Đã hủy
+          <XCircle className="h-3 w-3 mr-1" />
+          <span>Đã hủy</span>
         </PixelBadge>
       );
     case "Failed":
       return (
         <PixelBadge variant="red" className={className}>
-          ✕ Thất bại
+          <AlertCircle className="h-3 w-3 mr-1" />
+          <span>Thất bại</span>
         </PixelBadge>
       );
     default:

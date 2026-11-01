@@ -3,6 +3,7 @@ import { tripService } from "@/services/trip.service";
 import { matchingService } from "@/services/matching.service";
 import { paymentService } from "@/services/payment.service";
 import { routingService } from "@/services/routing.service";
+import { goongService } from "@/services/goong.service";
 import { apiClient } from "@/lib/api-client";
 
 describe("Services API Layer tests", () => {
@@ -54,7 +55,6 @@ describe("Services API Layer tests", () => {
   });
 
   it("routingService.getRoute returns turn-by-turn road coordinates", async () => {
-    // Mock global fetch
     const mockOsrmResponse = {
       code: "Ok",
       routes: [
@@ -83,6 +83,28 @@ describe("Services API Layer tests", () => {
     expect(route?.coordinates[0]).toEqual([10.772, 106.698]);
     expect(route?.coordinates[2]).toEqual([10.729, 106.719]);
     expect(route?.distanceMeters).toBe(7450);
+
+    fetchSpy.mockRestore();
+  });
+
+  it("goongService.searchPlaces returns Vietnamese landmark predictions", async () => {
+    const mockNominatimResponse = [
+      {
+        display_name: "Đại học Sài Gòn, Nguyễn Trãi, Phường Chợ Quán, Quận 5, TP.HCM",
+        name: "Đại học Sài Gòn",
+        lat: "10.7585",
+        lon: "106.6815",
+      },
+    ];
+
+    const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValueOnce({
+      ok: true,
+      json: async () => mockNominatimResponse,
+    } as any);
+
+    const predictions = await goongService.searchPlaces("Đại học Sài Gòn");
+    expect(predictions.length).toBeGreaterThan(0);
+    expect(predictions[0].mainText).toBe("Đại học Sài Gòn");
 
     fetchSpy.mockRestore();
   });
