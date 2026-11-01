@@ -6,7 +6,7 @@ import L from "leaflet";
 import type { LatLng } from "@/lib/map/haversine";
 import type { NearbyDriverDto } from "@/types";
 import { routingService } from "@/services/routing.service";
-import { MapPin, Flag, Navigation, Map as MapIcon, Layers } from "lucide-react";
+import { MapPin, Flag, Navigation, Map as MapIcon, Layers, Car } from "lucide-react";
 
 const GOONG_MAP_KEY = process.env.NEXT_PUBLIC_GOONG_MAP_KEY;
 
@@ -108,7 +108,7 @@ interface LeafletMapProps {
   driverLocation?: LatLng | null;
   nearbyDrivers?: NearbyDriverDto[];
   onSelectLocation?: (pos: LatLng) => void;
-  selectionMode?: "pickup" | "destination" | null;
+  selectionMode?: "pickup" | "destination" | "driver" | null;
   routeFrom?: LatLng | null;
   routeTo?: LatLng | null;
 }
@@ -308,10 +308,15 @@ export default function LeafletInnerMap({
               <MapPin className="h-4 w-4 text-emerald-600" />
               <span className="text-emerald-700">Click bản đồ để chọn ĐIỂM ĐÓN</span>
             </>
-          ) : (
+          ) : selectionMode === "destination" ? (
             <>
               <Flag className="h-4 w-4 text-rose-600" />
               <span className="text-rose-700">Click bản đồ để chọn ĐIỂM ĐẾN</span>
+            </>
+          ) : (
+            <>
+              <Car className="h-4 w-4 text-amber-600" />
+              <span className="text-amber-800">Click bản đồ để đặt VỊ TRÍ XE TÀI XẾ</span>
             </>
           )}
         </div>

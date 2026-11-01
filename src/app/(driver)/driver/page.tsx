@@ -25,17 +25,18 @@ import {
   MapPin,
   Flag,
 } from "lucide-react";
-import type { LatLng } from "@/lib/map/haversine";
+import { PRESET_LOCATIONS, type LatLng } from "@/lib/map/haversine";
 
 export default function DriverPage() {
   const [activeTripId, setActiveTripId] = useState<string>("");
   const [inputTripId, setInputTripId] = useState<string>("");
+  const [isSelectingLocation, setIsSelectingLocation] = useState(false);
 
   // Hook tiện ích sao chép mã chuyến từ react-haiku
   const { copy, copied } = useClipboard();
 
   // Hook 1: Định vị GPS & đồng bộ MongoDB qua Gateway
-  const { isOnline, toggleOnline, driverPos, gpsError } = useDriverLocation(true);
+  const { isOnline, toggleOnline, driverPos, setDriverPos, gpsError } = useDriverLocation(true);
 
   // Hook 2: Tự động quét các chuyến đi đang được đề xuất cho tài xế này (GET /trips/offers)
   const { data: myOffers } = useQuery({
@@ -130,6 +131,12 @@ export default function DriverPage() {
     toast.info(`Đang tra cứu chuyến: ${inputTripId.trim().substring(0, 8)}...`);
   };
 
+  const handleMoveDriverTo = async (pos: LatLng, name?: string) => {
+    await setDriverPos(pos);
+    setIsSelectingLocation(false);
+    toast.success(`Đã di chuyển vị trí xe đến: ${name || `${pos.lat.toFixed(4)}, ${pos.lng.toFixed(4)}`}`);
+  };
+
   // Xác định các điểm ghim Marker và tuyến đường OSRM dẫn đường
   let mapPickup: LatLng | null = null;
   let mapDestination: LatLng | null = null;
@@ -216,6 +223,40 @@ export default function DriverPage() {
             ) : (
               <p className="text-[10px] text-emerald-700">✓ Đang đồng bộ vị trí thực với MongoDB qua Gateway</p>
             )}
+          </div>
+
+          {/* Tùy chỉnh vị trí xe tài xế (Mô phỏng GPS / Chọn bản đồ) */}
+          <div className="pt-2 border-t border-slate-200 space-y-2">
+            <div className="flex items-center justify-between text-[11px]">
+              <span className="font-bold text-slate-700 flex items-center gap-1">
+                <MapPin className="h-3.5 w-3.5 text-taxi" />
+                <span>Mô phỏng vị trí xe (GPS):</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsSelectingLocation(!isSelectingLocation)}
+                className={`px-2 py-0.5 rounded text-[10px] font-bold border transition-colors ${
+                  isSelectingLocation
+                    ? "bg-taxi text-pixel-border border-pixel-border animate-pulse"
+                    : "bg-white text-slate-600 border-slate-300 hover:bg-slate-100"
+                }`}
+              >
+                {isSelectingLocation ? "Hủy chọn bản đồ" : "Click chọn trên bản đồ"}
+              </button>
+            </div>
+
+            <div className="flex flex-wrap gap-1">
+              {PRESET_LOCATIONS.map((loc) => (
+                <button
+                  key={loc.name}
+                  type="button"
+                  onClick={() => handleMoveDriverTo({ lat: loc.lat, lng: loc.lng }, loc.name)}
+                  className="rounded border border-slate-300 bg-white px-2 py-1 text-[10px] font-mono hover:border-taxi hover:bg-amber-50 text-slate-700 font-bold"
+                >
+                  {loc.name.split(" (")[0]}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -522,6 +563,8 @@ export default function DriverPage() {
           routeFrom={routeFrom}
           routeTo={routeTo}
           center={driverPos}
+          onSelectLocation={isSelectingLocation ? handleMoveDriverTo : undefined}
+          selectionMode={isSelectingLocation ? "driver" : null}
         />
       </div>
     </div>
