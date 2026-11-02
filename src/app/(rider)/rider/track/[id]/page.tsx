@@ -3,12 +3,15 @@
 import { use, useState } from "react";
 import Link from "next/link";
 import { useClipboard } from "react-haiku";
-import { useTrip, usePayment, useTripActions } from "@/hooks";
+import { useQuery } from "@tanstack/react-query";
+import { useTrip, usePayment, useTripActions, useNearbyDrivers } from "@/hooks";
+import { matchingService } from "@/services/matching.service";
 import { getErrorMessage } from "@/lib/errors";
 import { formatVND, formatDate } from "@/lib/utils";
 import { DynamicMap } from "@/components/shared/map/DynamicMap";
 import { PixelStepper } from "@/components/shared/pixel/PixelStepper";
 import { PixelStatusBadge } from "@/components/shared/pixel/PixelStatusBadge";
+import { PRESET_LOCATIONS, type LatLng } from "@/lib/map/haversine";
 import { toast } from "sonner";
 import {
   Car,
@@ -22,9 +25,16 @@ import {
   Copy,
   Check,
   XCircle,
-  MapPin,
-  Flag,
+  Compass,
 } from "lucide-react";
+
+function getCoordFallback(name?: string, isDest = false): LatLng {
+  if (!name) return isDest ? { lat: 10.729, lng: 106.719 } : { lat: 10.7721, lng: 106.698 };
+  const clean = name.toLowerCase();
+  const match = PRESET_LOCATIONS.find((p) => clean.includes(p.name.split(" (")[0].toLowerCase()));
+  if (match) return { lat: match.lat, lng: match.lng };
+  return isDest ? { lat: 10.729, lng: 106.719 } : { lat: 10.7721, lng: 106.698 };
+}
 
 export default function TripTrackPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: tripId } = use(params);
@@ -41,6 +51,23 @@ export default function TripTrackPage({ params }: { params: Promise<{ id: string
 
   // Hook 3: Mutation xử lý thanh toán và đồng bộ sổ cái
   const payMutation = usePayment(tripId);
+
+  // Hook 4: Polling vị trí tài xế đã nhận chuyến (khi trip có driverId hoặc offeredDriverId)
+  const assignedDriverId = trip?.driverId || trip?.offeredDriverId;
+  const { data: assignedDriverLoc } = useQuery<LatLng | null>({
+    queryKey: ["driverLocation", assignedDriverId],
+    queryFn: async () => {
+      if (!assignedDriverId) return null;
+      try {
+        const res = await matchingService.getDriverLocation(assignedDriverId);
+        return { lat: res.latitude, lng: res.longitude };
+      } catch {
+        return null;
+      }
+    },
+    enabled: !!assignedDriverId,
+    refetchInterval: 3000,
+  });
 
   const handlePay = () => {
     payMutation.mutate(
@@ -92,9 +119,39 @@ export default function TripTrackPage({ params }: { params: Promise<{ id: string
   const isCompleted = trip.status === "Paid";
   const canPay = trip.status === "DroppedOff";
 
-  const pickupPos = trip.pickupLat && trip.pickupLng ? { lat: trip.pickupLat, lng: trip.pickupLng } : null;
-  const destinationPos =
-    trip.destinationLat && trip.destinationLng ? { lat: trip.destinationLat, lng: trip.destinationLng } : null;
+  const pickupPos: LatLng =
+    trip.pickupLat && trip.pickupLng
+      ? { lat: trip.pickupLat, lng: trip.pickupLng }
+      : getCoordFallback(trip.pickup, false);
+
+  const destinationPos: LatLng =
+    trip.destinationLat && trip.destinationLng
+      ? { lat: trip.destinationLat, lng: trip.destinationLng }
+      : getCoordFallback(trip.destination, true);
+
+  // Hook 5: Quét các tài xế lân cận quanh điểm đón khi chưa có tài xế nhận cuốc
+  const { data: nearbyDrivers } = useNearbyDrivers(pickupPos.lat, pickupPos.lng);
+
+  // Xác định tuyến đường dẫn động theo từng giai đoạn trên màn hình Rider
+  let routeFrom: LatLng = pickupPos;
+  let routeTo: LatLng = destinationPos;
+  let trackBanner = "";
+
+  if (trip.status === "DriverAccepted" && assignedDriverLoc) {
+    // Tài xế đang đến đón: Tuyến đường từ xe tài xế -> điểm đón A
+    routeFrom = assignedDriverLoc;
+    routeTo = pickupPos;
+    trackBanner = `TÀI XẾ ĐANG DI CHUYỂN TỚI ĐIỂM ĐÓN (A): ${trip.pickup}`;
+  } else if (trip.status === "PickedUp") {
+    // Đã đón khách: Tuyến đường từ xe tài xế (hoặc điểm đón) -> điểm đến B
+    routeFrom = assignedDriverLoc || pickupPos;
+    routeTo = destinationPos;
+    trackBanner = `ĐANG DI CHUYỂN TỚI ĐIỂM ĐẾN (B): ${trip.destination}`;
+  } else {
+    // Mặc định (Requested, Searching, DriverOffered...): Tuyến đường lộ trình A -> B
+    routeFrom = pickupPos;
+    routeTo = destinationPos;
+  }
 
   return (
     <div className="flex h-[calc(100vh-61px)] flex-col md:flex-row">
@@ -336,10 +393,26 @@ export default function TripTrackPage({ params }: { params: Promise<{ id: string
 
       {/* Cột phải: Bản đồ lộ trình OpenStreetMap + OSRM trực quan */}
       <div className="flex-1 h-full min-h-[360px] relative">
+        {trackBanner && (
+          <div className="absolute top-4 left-4 right-4 z-[1000] rounded-lg border-2 border-pixel-border bg-pixel-dark text-white p-3 shadow-pixel flex items-center justify-between font-mono text-xs">
+            <div className="flex items-center gap-2">
+              <Compass className="h-4 w-4 text-taxi animate-spin" />
+              <span className="font-bold">{trackBanner}</span>
+            </div>
+            <span className="bg-emerald-500 text-white px-2 py-0.5 rounded text-[10px] font-bold">
+              GPS LIVE
+            </span>
+          </div>
+        )}
+
         <DynamicMap
           pickup={pickupPos}
           destination={destinationPos}
-          center={pickupPos || undefined}
+          driverLocation={assignedDriverLoc}
+          nearbyDrivers={!trip.driverId ? nearbyDrivers || [] : []}
+          routeFrom={routeFrom}
+          routeTo={routeTo}
+          center={assignedDriverLoc || pickupPos || undefined}
         />
       </div>
     </div>

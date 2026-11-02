@@ -27,6 +27,14 @@ import {
 } from "lucide-react";
 import { PRESET_LOCATIONS, type LatLng } from "@/lib/map/haversine";
 
+function getCoordFallback(name?: string, isDest = false): LatLng {
+  if (!name) return isDest ? { lat: 10.729, lng: 106.719 } : { lat: 10.7721, lng: 106.698 };
+  const clean = name.toLowerCase();
+  const match = PRESET_LOCATIONS.find((p) => clean.includes(p.name.split(" (")[0].toLowerCase()));
+  if (match) return { lat: match.lat, lng: match.lng };
+  return isDest ? { lat: 10.729, lng: 106.719 } : { lat: 10.7721, lng: 106.698 };
+}
+
 export default function DriverPage() {
   const [activeTripId, setActiveTripId] = useState<string>("");
   const [inputTripId, setInputTripId] = useState<string>("");
@@ -144,35 +152,48 @@ export default function DriverPage() {
   let routeTo: LatLng | null = null;
   let navigationBanner = "";
 
-  if (trip && trip.pickupLat && trip.pickupLng) {
-    const customerPickup: LatLng = { lat: trip.pickupLat, lng: trip.pickupLng };
-    const customerDest: LatLng = { lat: trip.destinationLat, lng: trip.destinationLng };
+  if (trip) {
+    const customerPickup: LatLng =
+      trip.pickupLat && trip.pickupLng
+        ? { lat: trip.pickupLat, lng: trip.pickupLng }
+        : getCoordFallback(trip.pickup, false);
+    const customerDest: LatLng =
+      trip.destinationLat && trip.destinationLng
+        ? { lat: trip.destinationLat, lng: trip.destinationLng }
+        : getCoordFallback(trip.destination, true);
 
-    // Marker A luôn ghim tại điểm đón của khách, Marker B luôn ghim tại điểm đến của khách
     mapPickup = customerPickup;
     mapDestination = customerDest;
 
     if (trip.status === "DriverAccepted") {
-      // Giai đoạn 1: Đã nhận cuốc -> Tuyến đường dẫn từ VỊ TRÍ TÀI XẾ -> ĐIỂM ĐÓN KHÁCH (A)
+      // Giai đoạn 1: Đã nhận cuốc -> Dẫn đường từ vị trí tài xế đến điểm đón khách (A)
       routeFrom = driverPos;
       routeTo = customerPickup;
       navigationBanner = `DẪN ĐƯỜNG TỚI ĐIỂM ĐÓN KHÁCH (A): ${trip.pickup}`;
     } else if (trip.status === "PickedUp") {
-      // Giai đoạn 2: Đã đón khách -> Tuyến đường dẫn từ VỊ TRÍ TÀI XẾ -> ĐIỂM ĐẾN CỦA KHÁCH (B)
+      // Giai đoạn 2: Đã đón khách -> Dẫn đường từ vị trí xe đến điểm trả khách (B)
       routeFrom = driverPos;
       routeTo = customerDest;
       navigationBanner = `DẪN ĐƯỜNG TỚI ĐIỂM TRẢ KHÁCH (B): ${trip.destination}`;
     } else {
-      // Giai đoạn xem trước (Requested, DriverOffered...): Tuyến đường nối từ khách đón -> khách đến
+      // Giai đoạn xem trước (Requested, DriverOffered...): Lộ trình khách đặt A -> B
       routeFrom = customerPickup;
       routeTo = customerDest;
     }
-  } else if (myOffers && myOffers.length > 0 && myOffers[0].pickupLat && myOffers[0].pickupLng) {
-    // Có cuốc xe mới đề xuất: Hiển thị điểm đón khách và tuyến đường từ tài xế tới khách
-    mapPickup = { lat: myOffers[0].pickupLat, lng: myOffers[0].pickupLng };
-    mapDestination = { lat: myOffers[0].destinationLat, lng: myOffers[0].destinationLng };
+  } else if (myOffers && myOffers.length > 0) {
+    const offerPickup: LatLng =
+      myOffers[0].pickupLat && myOffers[0].pickupLng
+        ? { lat: myOffers[0].pickupLat, lng: myOffers[0].pickupLng }
+        : getCoordFallback(myOffers[0].pickup, false);
+    const offerDest: LatLng =
+      myOffers[0].destinationLat && myOffers[0].destinationLng
+        ? { lat: myOffers[0].destinationLat, lng: myOffers[0].destinationLng }
+        : getCoordFallback(myOffers[0].destination, true);
+
+    mapPickup = offerPickup;
+    mapDestination = offerDest;
     routeFrom = driverPos;
-    routeTo = mapPickup;
+    routeTo = offerPickup;
     navigationBanner = `ĐỀ XUẤT CUỐC MỚI: Đón khách tại ${myOffers[0].pickup}`;
   }
 
@@ -334,21 +355,7 @@ export default function DriverPage() {
               </button>
             </div>
           </div>
-        ) : (
-          /* Radar thông báo trạng thái sẵn sàng nhận cuốc */
-          <div className="rounded-lg border-2 border-dashed border-emerald-400 bg-emerald-50 p-4 space-y-2 text-xs">
-            <div className="flex items-center gap-2 text-emerald-900 font-bold">
-              <span className="relative flex h-3 w-3">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-600"></span>
-              </span>
-              <span>RADAR NHẬN CUỐC ĐANG HOẠT ĐỘNG</span>
-            </div>
-            <p className="text-[11px] text-emerald-800 leading-relaxed">
-              Vị trí của bạn đang được phát sóng lên MatchingService mỗi 5 giây tại Chợ Bến Thành. Khi khách hàng bấm đặt xe và xác nhận giá cước, cuốc xe sẽ tự động nhảy vào đây kèm nút nhận cuốc!
-            </p>
-          </div>
-        )}
+        ) : null}
 
         {/* Card Tra cứu chuyến theo mã */}
         <div className="pixel-card rounded-lg p-5 bg-white space-y-4">

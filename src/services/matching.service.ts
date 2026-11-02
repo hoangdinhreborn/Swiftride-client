@@ -19,4 +19,8 @@ export const matchingService = {
   updateLocation: (req: UpdateDriverLocationRequest): Promise<DriverLocationDto> => {
     return apiClient.put<DriverLocationDto>("/drivers/me/location", req);
   },
+
+  getDriverLocation: (driverId: string): Promise<DriverLocationDto> => {
+    return apiClient.get<DriverLocationDto>(`/drivers/${driverId}/location`);
+  },
 };

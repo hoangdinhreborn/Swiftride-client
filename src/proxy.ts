@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { decodeJwt } from "@/lib/auth/token";
 
-export function middleware(req: NextRequest) {
+export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   // 1. Bảo vệ trang Rider: Ưu tiên cookie của Rider để không bị ghi đè khi tab khác đăng nhập Driver
