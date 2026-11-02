@@ -34,7 +34,14 @@ export function PixelStatusBadge({ status, className }: Props) {
       return (
         <PixelBadge variant="blue" className={className}>
           <Car className="h-3 w-3 mr-1" />
-          <span>Tài xế đang đến</span>
+          <span>Tài xế đã nhận cuốc</span>
+        </PixelBadge>
+      );
+    case "EnRoute":
+      return (
+        <PixelBadge variant="blue" className={className}>
+          <Car className="h-3 w-3 mr-1 animate-pulse" />
+          <span>Tài xế đang đến đón</span>
         </PixelBadge>
       );
     case "PickedUp":

@@ -28,6 +28,11 @@ export function useTripActions(tripId: string) {
     onSuccess: invalidate,
   });
 
+  const startEnRoute = useMutation({
+    mutationFn: () => tripService.startEnRoute(tripId),
+    onSuccess: invalidate,
+  });
+
   const decline = useMutation({
     mutationFn: () => tripService.declineTrip(tripId),
     onSuccess: invalidate,
@@ -47,6 +52,7 @@ export function useTripActions(tripId: string) {
     confirm,
     cancel,
     accept,
+    startEnRoute,
     decline,
     pickup,
     dropoff,
@@ -54,6 +60,7 @@ export function useTripActions(tripId: string) {
       confirm.isPending ||
       cancel.isPending ||
       accept.isPending ||
+      startEnRoute.isPending ||
       decline.isPending ||
       pickup.isPending ||
       dropoff.isPending,

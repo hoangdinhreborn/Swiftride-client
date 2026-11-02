@@ -57,8 +57,8 @@ export default function DriverPage() {
   // Hook 3: Polling thông tin chuyến đi đang làm việc
   const { data: trip } = useTrip(activeTripId);
 
-  // Hook 4: Các hành động của tài xế (Accept, Decline, Pickup, Dropoff)
-  const { accept, decline, pickup, dropoff, isProcessing } = useTripActions(activeTripId);
+  // Hook 4: Các hành động của tài xế (Accept, StartEnRoute, Decline, Pickup, Dropoff)
+  const { accept, startEnRoute, decline, pickup, dropoff, isProcessing } = useTripActions(activeTripId);
 
   const handleToggleOnline = async () => {
     try {
@@ -80,6 +80,21 @@ export default function DriverPage() {
       },
       onError: (err) => {
         toast.error("Không thể nhận chuyến", {
+          description: getErrorMessage(err),
+        });
+      },
+    });
+  };
+
+  const handleStartEnRoute = () => {
+    startEnRoute.mutate(undefined, {
+      onSuccess: (updated) => {
+        toast.success("Bắt đầu di chuyển đến điểm đón!", {
+          description: `Đang trên đường đón khách tại: ${updated.pickup}`,
+        });
+      },
+      onError: (err) => {
+        toast.error("Không thể chuyển trạng thái", {
           description: getErrorMessage(err),
         });
       },
@@ -165,8 +180,8 @@ export default function DriverPage() {
     mapPickup = customerPickup;
     mapDestination = customerDest;
 
-    if (trip.status === "DriverAccepted") {
-      // Giai đoạn 1: Đã nhận cuốc -> Dẫn đường từ vị trí tài xế đến điểm đón khách (A)
+    if (trip.status === "DriverAccepted" || trip.status === "EnRoute") {
+      // Giai đoạn 1 & 2: Đã nhận cuốc / Đang đến đón -> Dẫn đường từ vị trí tài xế đến điểm đón khách (A)
       routeFrom = driverPos;
       routeTo = customerPickup;
       navigationBanner = `DẪN ĐƯỜNG TỚI ĐIỂM ĐÓN KHÁCH (A): ${trip.pickup}`;
@@ -503,11 +518,23 @@ export default function DriverPage() {
                 <button
                   type="button"
                   disabled={isProcessing}
-                  onClick={handlePickup}
-                  className="w-full pixel-btn-primary rounded-md py-3 text-xs font-bold flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-white disabled:opacity-50"
+                  onClick={handleStartEnRoute}
+                  className="w-full pixel-btn-primary rounded-md py-3 text-xs font-bold flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-400 text-white shadow-pixel-sm disabled:opacity-50"
                 >
                   <Navigation className="h-4 w-4" />
-                  <span>{pickup.isPending ? "Đang xử lý..." : "ĐÃ ĐÓN KHÁCH (Pick Up)"}</span>
+                  <span>{startEnRoute.isPending ? "Đang xử lý..." : "BẮT ĐẦU ĐẾN ĐIỂM ĐÓN (En Route)"}</span>
+                </button>
+              )}
+
+              {trip.status === "EnRoute" && (
+                <button
+                  type="button"
+                  disabled={isProcessing}
+                  onClick={handlePickup}
+                  className="w-full pixel-btn-primary rounded-md py-3 text-xs font-bold flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-white shadow-pixel-sm disabled:opacity-50"
+                >
+                  <Car className="h-4 w-4" />
+                  <span>{pickup.isPending ? "Đang xử lý..." : "ĐÃ ĐÓN ĐƯỢC KHÁCH (Pick Up)"}</span>
                 </button>
               )}
 

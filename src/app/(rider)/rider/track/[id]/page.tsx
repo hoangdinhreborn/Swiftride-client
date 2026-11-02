@@ -137,7 +137,7 @@ export default function TripTrackPage({ params }: { params: Promise<{ id: string
   let routeTo: LatLng = destinationPos;
   let trackBanner = "";
 
-  if (trip.status === "DriverAccepted" && assignedDriverLoc) {
+  if ((trip.status === "DriverAccepted" || trip.status === "EnRoute") && assignedDriverLoc) {
     // Tài xế đang đến đón: Tuyến đường từ xe tài xế -> điểm đón A
     routeFrom = assignedDriverLoc;
     routeTo = pickupPos;

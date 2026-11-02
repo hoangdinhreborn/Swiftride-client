@@ -23,6 +23,7 @@ function getStepIndex(status: string): number {
     case "DriverOffered":
       return 1;
     case "DriverAccepted":
+    case "EnRoute":
       return 2;
     case "PickedUp":
       return 3;

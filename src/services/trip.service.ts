@@ -1,5 +1,5 @@
 import { apiClient } from "@/lib/api-client";
-import type { TripDto, RequestTripRequest } from "@/types";
+import type { TripDto, RequestTripRequest, AggregateTripDto } from "@/types";
 
 export const tripService = {
   requestTrip: (cmd: RequestTripRequest): Promise<TripDto> => {
@@ -22,6 +22,10 @@ export const tripService = {
     return apiClient.post<TripDto>(`/trips/${id}/driver-accept`);
   },
 
+  startEnRoute: (id: string): Promise<TripDto> => {
+    return apiClient.post<TripDto>(`/trips/${id}/en-route`);
+  },
+
   declineTrip: (id: string): Promise<TripDto> => {
     return apiClient.post<TripDto>(`/trips/${id}/driver-decline`);
   },
@@ -36,5 +40,9 @@ export const tripService = {
 
   getMyOffers: (): Promise<TripDto[]> => {
     return apiClient.get<TripDto[]>("/trips/offers");
+  },
+
+  getTripAggregate: (id: string): Promise<AggregateTripDto> => {
+    return apiClient.get<AggregateTripDto>(`/aggregate/trips/${id}`);
   },
 };

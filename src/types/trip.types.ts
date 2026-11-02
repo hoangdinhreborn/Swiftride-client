@@ -3,6 +3,7 @@ export type TripStatus =
   | "Searching"
   | "DriverOffered"
   | "DriverAccepted"
+  | "EnRoute"
   | "PickedUp"
   | "DroppedOff"
   | "PaymentPending"
@@ -35,4 +36,10 @@ export interface RequestTripRequest {
   destinationLat: number;
   destinationLng: number;
   promoCode?: string;
+}
+
+export interface AggregateTripDto {
+  trip: TripDto;
+  payment: unknown | null;
+  paymentState: "found" | "none" | "hidden" | "unavailable";
 }
